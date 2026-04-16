@@ -8,7 +8,7 @@ const PROTECTED_ROUTES = ["/dashboard", "/results"]
 // Routes soumises au rate limiting
 const RATE_LIMITED_ROUTES = ["/auth/", "/api/payment/"]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // /admin/** → Payload gère son propre middleware et JWT

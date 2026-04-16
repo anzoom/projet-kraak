@@ -1,11 +1,8 @@
 import type { NextConfig } from "next"
-import { withPayload } from "@payloadcms/next"
+import { withPayload } from "@payloadcms/next/withPayload"
 
 const nextConfig: NextConfig = {
-  experimental: {
-    // Requis par Payload CMS 3
-    reactCompiler: false,
-  },
+  reactCompiler: false,
 }
 
 export default withPayload(nextConfig, { devBundleServerPackages: false })
