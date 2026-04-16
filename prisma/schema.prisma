@@ -1,0 +1,94 @@
+// This is your Prisma schema file — business logic entities for KRAAK
+// Payload CMS uses its own Drizzle ORM for CMS tables (opportunities, admin_users, etc.)
+// Migration order: npx payload migrate THEN npx prisma migrate deploy
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  supabase_uid String    @unique
+  deleted_at   DateTime? // soft delete — null = actif (RGPD)
+  created_at   DateTime  @default(now())
+
+  test_responses    TestResponse[]
+  purchase_accesses PurchaseAccess[]
+  payments          Payment[]
+}
+
+model TestResponse {
+  id         String   @id @default(cuid())
+  user_id    String
+  answers    Json
+  completed  Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user          User              @relation(fields: [user_id], references: [id])
+  profile_score UserProfileScore?
+}
+
+model UserProfileScore {
+  id               String   @id @default(cuid())
+  test_response_id String   @unique
+  academic_score   Int
+  financial_score  Int
+  maturity_score   Int
+  segment          String
+  computed_at      DateTime @default(now())
+
+  test_response     TestResponse     @relation(fields: [test_response_id], references: [id])
+  recommendations   Recommendation[]
+  purchase_accesses PurchaseAccess[]
+}
+
+model Recommendation {
+  id             String @id @default(cuid())
+  score_id       String
+  opportunity_id String // référence vers table Payload CMS (opportunities)
+  match_score    Float
+  justification  String
+
+  profile_score UserProfileScore @relation(fields: [score_id], references: [id])
+}
+
+model Payment {
+  id                 String        @id @default(cuid())
+  user_id            String
+  amount             Int // en XOF entier — jamais Float pour des montants financiers
+  currency           String        @default("XOF")
+  psp                String // "cinetpay" | "notchpay"
+  psp_transaction_id String?       @unique
+  status             PaymentStatus @default(PENDING)
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+
+  user            User            @relation(fields: [user_id], references: [id])
+  purchase_access PurchaseAccess?
+}
+
+model PurchaseAccess {
+  id         String   @id @default(cuid())
+  user_id    String
+  payment_id String   @unique
+  score_id   String
+  expires_at DateTime // now() + 6 mois — jamais null
+  created_at DateTime @default(now())
+
+  user          User             @relation(fields: [user_id], references: [id])
+  payment       Payment          @relation(fields: [payment_id], references: [id])
+  profile_score UserProfileScore @relation(fields: [score_id], references: [id])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}

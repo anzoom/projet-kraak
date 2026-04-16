@@ -1,32 +1,52 @@
-# Variables d'environnement
-.env
-.env.*
-!.env.example
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Dépendances
-node_modules/
-__pycache__/
-*.pyc
-.venv/
-venv/
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Build
-dist/
-build/
-.next/
-out/
+# testing
+/coverage
 
-# Logs
-*.log
-npm-debug.log*
+# next.js
+/.next/
+/out/
 
-# OS
+# production
+/build
+
+# misc
 .DS_Store
-Thumbs.db
+*.pem
 
-# IDE (optionnel, garde .claude/ inclus)
-.idea/
-*.swp
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Claude Code — inclure .claude/ sauf settings.local.json
-.claude/settings.local.json
+# env files — ne jamais commiter les secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Garder .env.example tracké (valeurs placeholder uniquement)
+
+# Prisma — env local
+prisma/.env
+
+# Payload CMS generated types
+payload-types.ts
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

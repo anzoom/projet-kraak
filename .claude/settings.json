@@ -32,7 +32,8 @@
       "WebFetch(domain:*)",
       "Skill(*)",
       "Bash(npx @playwright/mcp --version)",
-      "mcp__playwright__*"
+      "mcp__playwright__*",
+      "mcp__context7__*"
     ],
     "deny": []
   }
