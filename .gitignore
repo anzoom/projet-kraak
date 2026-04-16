@@ -1,0 +1,32 @@
+# Variables d'environnement
+.env
+.env.*
+!.env.example
+
+# Dépendances
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE (optionnel, garde .claude/ inclus)
+.idea/
+*.swp
+
+# Claude Code — inclure .claude/ sauf settings.local.json
+.claude/settings.local.json
