@@ -21,6 +21,9 @@ function getRatelimit(): Ratelimit {
 }
 
 export async function isRateLimited(identifier: string): Promise<boolean> {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return false
+  }
   const { success } = await getRatelimit().limit(identifier)
   return !success
 }
