@@ -48,7 +48,7 @@ export default function LoginForm() {
       return
     }
 
-    router.push(isSafeRedirect(next) ? next! : "/")
+    router.push(isSafeRedirect(next) ? next! : "/results")
   }
 
   return (

@@ -2,6 +2,15 @@ import type { TestAnswers } from "./test"
 
 export type Segment = "Explorer" | "Candidat" | "Finaliste"
 
+const PAYLOAD_LEVEL_MAP: Record<string, string> = {
+  bac3: "licence",
+  bac5: "master",
+}
+
+export function normalizeStudyLevel(payloadLevel: string): string {
+  return PAYLOAD_LEVEL_MAP[payloadLevel] ?? payloadLevel
+}
+
 export interface ScoringOutput {
   academic_score: number
   financial_score: number

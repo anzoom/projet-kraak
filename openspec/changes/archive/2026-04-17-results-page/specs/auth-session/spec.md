@@ -1,24 +1,4 @@
-### Requirement: Protection JWT des routes sensibles dans le proxy
-Le proxy SHALL vérifier le JWT Supabase avant d'autoriser l'accès aux routes protégées (`/results`). Un utilisateur non authentifié MUST être redirigé vers `/auth/login?next=<pathname>`.
-
-#### Scenario: Accès non authentifié à /results
-- **WHEN** un utilisateur sans JWT valide tente d'accéder à `/results`
-- **THEN** il est redirigé vers `/auth/login?next=/results`
-
-#### Scenario: Accès authentifié à /results
-- **WHEN** un utilisateur avec un JWT valide accède à `/results`
-- **THEN** la page est retournée normalement
-
-#### Scenario: JWT expiré sur route protégée
-- **WHEN** un JWT expiré est présent dans les cookies et l'utilisateur accède à `/results`
-- **THEN** il est redirigé vers `/auth/login?next=/results`
-
-### Requirement: Client Supabase SSR pour Server Components
-Le système SHALL exposer `createSupabaseServerAnonClient()` pour lire l'utilisateur authentifié dans les Server Components et API Routes, via les cookies HttpOnly.
-
-#### Scenario: Lecture de l'utilisateur côté serveur
-- **WHEN** un Server Component appelle `createSupabaseServerAnonClient().auth.getUser()`
-- **THEN** il reçoit l'objet `user` si la session est valide, ou `null` sinon
+## MODIFIED Requirements
 
 ### Requirement: Page résultats complète protégée
 La page `/results` SHALL être accessible uniquement aux utilisateurs authentifiés. Elle SHALL afficher le profil scoré complet (segment, sous-scores, score global), les recommandations personnalisées avec paywall freemium, et calculer le score à la volée depuis localStorage si absent.

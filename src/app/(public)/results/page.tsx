@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { createSupabaseServerAnonClient } from "@/lib/supabase/server"
-import ResultsStub from "@/components/features/results/ResultsStub"
+import { fetchOpportunities } from "@/lib/opportunities"
+import ResultsClient from "@/components/features/results/ResultsClient"
 
 export const metadata: Metadata = {
   title: "Tes résultats — KRAAK",
@@ -9,7 +10,11 @@ export const metadata: Metadata = {
 }
 
 export default async function ResultsPage() {
-  const supabase = await createSupabaseServerAnonClient()
+  const [supabase, opportunities] = await Promise.all([
+    createSupabaseServerAnonClient(),
+    fetchOpportunities(),
+  ])
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -31,7 +36,7 @@ export default async function ResultsPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <ResultsStub />
+        <ResultsClient opportunities={opportunities} />
       </main>
     </div>
   )
