@@ -1,25 +1,4 @@
-### Requirement: Formulaire d'inscription email/password
-La page `/auth/register` SHALL afficher un formulaire avec les champs email et mot de passe. La soumission appelle Supabase `signUp`. Le bouton de soumission est désactivé pendant le chargement.
-
-#### Scenario: Affichage de la page register
-- **WHEN** l'utilisateur navigue vers `/auth/register`
-- **THEN** la page affiche un formulaire avec les champs email, mot de passe et un bouton "S'inscrire"
-
-#### Scenario: Inscription réussie
-- **WHEN** l'utilisateur soumet un email valide et un mot de passe ≥ 6 caractères
-- **THEN** Supabase crée le compte, le JWT est stocké en cookie HttpOnly, et l'utilisateur est redirigé
-
-#### Scenario: Email déjà utilisé
-- **WHEN** l'utilisateur soumet un email déjà enregistré
-- **THEN** un message d'erreur s'affiche sous le formulaire sans rechargement de page
-
-#### Scenario: Mot de passe trop court
-- **WHEN** l'utilisateur soumet un mot de passe de moins de 6 caractères
-- **THEN** un message d'erreur indique que le mot de passe doit faire au moins 6 caractères
-
-#### Scenario: Champs vides
-- **WHEN** l'utilisateur soumet le formulaire avec un champ vide
-- **THEN** la validation HTML5 native empêche la soumission
+## MODIFIED Requirements
 
 ### Requirement: Flux post-inscription avec scoring
 Après une inscription réussie depuis `/auth/register?from=test`, le système SHALL :
@@ -42,6 +21,8 @@ Après une inscription réussie depuis `/auth/register?from=test`, le système S
 - **WHEN** l'inscription réussit et l'URL ne contient pas `?from=test`
 - **THEN** l'utilisateur est redirigé vers `/`
 
+## ADDED Requirements
+
 ### Requirement: État confirmation en attente amélioré
 L'état "Vérifie ta boîte mail" dans `RegisterForm` SHALL indiquer la durée de validité du lien (24h) et proposer un bouton "Renvoyer le lien" via `supabase.auth.resend({ type: "signup", email })`.
 
@@ -52,10 +33,3 @@ L'état "Vérifie ta boîte mail" dans `RegisterForm` SHALL indiquer la durée d
 #### Scenario: Renvoi du lien depuis l'état confirmationPending
 - **WHEN** l'utilisateur clique sur "Renvoyer le lien"
 - **THEN** `supabase.auth.resend({ type: "signup", email })` est appelé et un message "Lien renvoyé" s'affiche temporairement
-
-### Requirement: Lien vers la page de connexion
-La page `/auth/register` SHALL afficher un lien vers `/auth/login` pour les utilisateurs ayant déjà un compte.
-
-#### Scenario: Lien de connexion visible
-- **WHEN** la page `/auth/register` est affichée
-- **THEN** un lien "J'ai déjà un compte" ou similaire est visible et navigue vers `/auth/login`

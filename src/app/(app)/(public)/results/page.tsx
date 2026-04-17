@@ -9,15 +9,22 @@ export const metadata: Metadata = {
   description: "Découvre les opportunités les plus adaptées à ton profil.",
 }
 
-export default async function ResultsPage() {
-  const [supabase, opportunities] = await Promise.all([
+export default async function ResultsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ needs_scoring?: string }>
+}) {
+  const [supabase, opportunities, params] = await Promise.all([
     createSupabaseServerAnonClient(),
     fetchOpportunities(),
+    searchParams,
   ])
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  const needsScoring = params.needs_scoring === "true"
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-light">
@@ -36,7 +43,7 @@ export default async function ResultsPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <ResultsClient opportunities={opportunities} />
+        <ResultsClient opportunities={opportunities} needsScoring={needsScoring} />
       </main>
     </div>
   )

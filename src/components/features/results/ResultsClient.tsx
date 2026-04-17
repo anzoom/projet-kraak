@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { ScoringOutput, Opportunity, Recommendation } from "@/types/scoring"
 import { matchOpportunities } from "@/domain/matching/matcher"
@@ -14,6 +15,7 @@ const FREE_LIMIT = 2
 
 interface Props {
   opportunities: Opportunity[]
+  needsScoring?: boolean
 }
 
 type State =
@@ -21,8 +23,9 @@ type State =
   | { status: "no_data" }
   | { status: "ready"; score: ScoringOutput; recommendations: Recommendation[] }
 
-export default function ResultsClient({ opportunities }: Props) {
+export default function ResultsClient({ opportunities, needsScoring = false }: Props) {
   const [state, setState] = useState<State>({ status: "loading" })
+  const router = useRouter()
 
   useEffect(() => {
     async function load() {
@@ -30,14 +33,17 @@ export default function ResultsClient({ opportunities }: Props) {
         let score: ScoringOutput | null = null
         let answers: Record<string, string> | null = null
 
-        const cached = localStorage.getItem(STORAGE_KEY_RESULT)
-        if (cached) {
-          const parsed = JSON.parse(cached) as {
-            score: ScoringOutput
-            answers?: Record<string, string>
+        // Skip cache when coming from email confirmation — force fresh scoring
+        if (!needsScoring) {
+          const cached = localStorage.getItem(STORAGE_KEY_RESULT)
+          if (cached) {
+            const parsed = JSON.parse(cached) as {
+              score: ScoringOutput
+              answers?: Record<string, string>
+            }
+            score = parsed.score
+            answers = parsed.answers ?? null
           }
-          score = parsed.score
-          answers = parsed.answers ?? null
         }
 
         if (!score) {
@@ -64,6 +70,11 @@ export default function ResultsClient({ opportunities }: Props) {
           }
         }
 
+        // Clean up the needs_scoring param after processing
+        if (needsScoring) {
+          router.replace("/results")
+        }
+
         if (!score || !answers) {
           setState({ status: "no_data" })
           return
@@ -82,7 +93,7 @@ export default function ResultsClient({ opportunities }: Props) {
     }
 
     load()
-  }, [opportunities])
+  }, [opportunities, needsScoring, router])
 
   if (state.status === "loading") {
     return (

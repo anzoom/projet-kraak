@@ -19,6 +19,8 @@ export default function RegisterForm() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [confirmationPending, setConfirmationPending] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,7 +28,15 @@ export default function RegisterForm() {
     setLoading(true)
 
     const supabase = createSupabaseBrowserClient()
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
+    const emailRedirectTo = fromTest
+      ? `${window.location.origin}/auth/callback?next=/results&from=test`
+      : `${window.location.origin}/auth/callback`
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo },
+    })
 
     if (signUpError) {
       setError(
@@ -76,6 +86,17 @@ export default function RegisterForm() {
     }
   }
 
+  async function handleResend() {
+    setResendLoading(true)
+    const supabase = createSupabaseBrowserClient()
+    const emailRedirectTo = fromTest
+      ? `${window.location.origin}/auth/callback?next=/results&from=test`
+      : `${window.location.origin}/auth/callback`
+    await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo } })
+    setResendSent(true)
+    setResendLoading(false)
+  }
+
   if (confirmationPending) {
     return (
       <div className="w-full max-w-sm text-center">
@@ -84,10 +105,25 @@ export default function RegisterForm() {
         <p className="text-slate-mid text-sm mb-1">
           Un lien de confirmation a été envoyé à
         </p>
-        <p className="font-semibold text-slate-dark text-sm mb-6">{email}</p>
-        <p className="text-slate-mid text-xs">
+        <p className="font-semibold text-slate-dark text-sm mb-3">{email}</p>
+        <p className="text-slate-mid text-xs mb-6">
           Clique sur le lien pour activer ton compte et accéder à tes résultats.
+          Le lien est valable <span className="font-medium">24 heures</span>.
         </p>
+        {resendSent ? (
+          <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+            Lien renvoyé ! Vérifie ta boîte mail.
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resendLoading}
+            className="text-sm text-primary font-medium hover:underline disabled:text-gray-400 disabled:no-underline"
+          >
+            {resendLoading ? "Envoi en cours…" : "Renvoyer le lien"}
+          </button>
+        )}
       </div>
     )
   }
