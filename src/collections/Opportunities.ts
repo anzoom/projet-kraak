@@ -2,6 +2,9 @@ import type { CollectionConfig } from "payload"
 
 export const Opportunities: CollectionConfig = {
   slug: "opportunities",
+  access: {
+    read: () => true,
+  },
   admin: {
     useAsTitle: "title",
     defaultColumns: ["title", "country", "category", "is_active", "deadline"],
