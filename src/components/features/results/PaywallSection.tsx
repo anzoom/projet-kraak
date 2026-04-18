@@ -53,7 +53,7 @@ export default function PaywallSection({ locked }: Props) {
         </div>
 
         <Link
-          href="/payment"
+          href={`/payment?locked_count=${locked.length}`}
           className="inline-flex items-center justify-center w-full h-13 rounded-full bg-primary text-white font-bold text-base hover:bg-primary-dark shadow-md shadow-orange-200 transition-colors"
         >
           Débloquer mes recommandations

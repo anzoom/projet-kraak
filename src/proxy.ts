@@ -4,7 +4,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { isRateLimited } from "@/lib/upstash"
 
 // Routes protégées par JWT Supabase
-const PROTECTED_ROUTES = ["/dashboard", "/results"]
+const PROTECTED_ROUTES = ["/dashboard", "/results", "/payment"]
 
 // Routes soumises au rate limiting
 const RATE_LIMITED_ROUTES = ["/auth/", "/api/payment/"]

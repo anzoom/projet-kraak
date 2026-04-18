@@ -16,6 +16,7 @@ const FREE_LIMIT = 2
 interface Props {
   opportunities: Opportunity[]
   needsScoring?: boolean
+  hasAccess?: boolean
 }
 
 type State =
@@ -23,7 +24,7 @@ type State =
   | { status: "no_data" }
   | { status: "ready"; score: ScoringOutput; recommendations: Recommendation[] }
 
-export default function ResultsClient({ opportunities, needsScoring = false }: Props) {
+export default function ResultsClient({ opportunities, needsScoring = false, hasAccess = false }: Props) {
   const [state, setState] = useState<State>({ status: "loading" })
   const router = useRouter()
 
@@ -123,8 +124,8 @@ export default function ResultsClient({ opportunities, needsScoring = false }: P
   }
 
   const { score, recommendations } = state
-  const free = recommendations.slice(0, FREE_LIMIT)
-  const locked = recommendations.slice(FREE_LIMIT)
+  const free = hasAccess ? recommendations : recommendations.slice(0, FREE_LIMIT)
+  const locked = hasAccess ? [] : recommendations.slice(FREE_LIMIT)
 
   return (
     <div className="w-full max-w-lg space-y-6">
