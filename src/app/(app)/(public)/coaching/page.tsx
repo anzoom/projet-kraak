@@ -1,11 +1,10 @@
-import type { Metadata } from "next"
+"use client"
+
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
+import posthog from "posthog-js"
 
-export const metadata: Metadata = {
-  title: "Coaching — KRAAK",
-  description: "Maximise tes chances d'acceptation avec un accompagnement personnalisé.",
-}
+const WHATSAPP_NUMBER = "33768251709"
 
 const OFFERS = [
   {
@@ -20,6 +19,7 @@ const OFFERS = [
       "Retour sous 48h",
     ],
     cta: "Demander un audit",
+    message: "Bonjour, je souhaite demander un audit de dossier via KRAAK. Pouvez-vous me donner plus d'informations ?",
     highlight: false,
   },
   {
@@ -34,6 +34,7 @@ const OFFERS = [
       "Suivi jusqu'à la décision finale",
     ],
     cta: "Être accompagné",
+    message: "Bonjour, je souhaite être accompagné pour ma candidature via KRAAK. Pouvez-vous me donner plus d'informations ?",
     highlight: true,
   },
 ]
@@ -88,16 +89,20 @@ export default function CoachingPage() {
                   </li>
                 ))}
               </ul>
-              <button
+              <a
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(offer.message)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => posthog.capture("coaching_whatsapp_clicked", { offer: offer.id })}
                 className={[
-                  "w-full h-12 rounded-full font-bold text-sm transition-colors",
+                  "w-full h-12 rounded-full font-bold text-sm transition-colors inline-flex items-center justify-center gap-2",
                   offer.highlight
                     ? "bg-primary text-white hover:bg-primary-dark shadow-md shadow-orange-100"
                     : "border-2 border-primary text-primary hover:bg-primary hover:text-white",
                 ].join(" ")}
               >
                 {offer.cta} →
-              </button>
+              </a>
             </div>
           ))}
         </div>
