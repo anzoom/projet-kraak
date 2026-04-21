@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import posthog from "posthog-js"
@@ -38,13 +38,30 @@ function generateAvailableDays(count = 12): Date[] {
 const SLOTS = generateSlots()
 const DAYS = generateAvailableDays()
 
+type BookedSlot = { date: string; slot: string; status: string }
+
 export default function CoachingPage() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [weekOffset, setWeekOffset] = useState(0)
+  const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([])
+  const [booking, setBooking] = useState(false)
+  const [booked, setBooked] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/coaching/slots")
+      .then((r) => r.json())
+      .then((data: { bookings: BookedSlot[] }) => setBookedSlots(data.bookings))
+      .catch(() => {})
+  }, [])
 
   const visibleDays = DAYS.slice(weekOffset * 6, weekOffset * 6 + 6)
   const hasNextWeek = (weekOffset + 1) * 6 < DAYS.length
+
+  function isSlotBooked(day: Date, slot: string): boolean {
+    const dateStr = day.toISOString().slice(0, 10)
+    return bookedSlots.some((b) => b.date === dateStr && b.slot === slot)
+  }
 
   function handleDaySelect(day: Date) {
     setSelectedDay(day)
@@ -56,14 +73,35 @@ export default function CoachingPage() {
     return `Bonjour, je souhaite réserver un call coaching KRAAK le ${dayLabel} à ${slot}. Est-ce que ce créneau est disponible ?`
   }
 
-  function handleBook() {
-    if (!selectedDay || !selectedSlot) return
-    posthog.capture("coaching_slot_booked", {
-      day: selectedDay.toISOString().slice(0, 10),
-      slot: selectedSlot,
-    })
-    const msg = buildWhatsAppMessage(selectedDay, selectedSlot)
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank")
+  async function handleBook() {
+    if (!selectedDay || !selectedSlot || booking) return
+    setBooking(true)
+    const dateStr = selectedDay.toISOString().slice(0, 10)
+    try {
+      const res = await fetch("/api/coaching/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: dateStr, slot: selectedSlot }),
+      })
+      if (res.status === 409) {
+        // Créneau pris entre-temps
+        setBookedSlots((prev) => [...prev, { date: dateStr, slot: selectedSlot, status: "PENDING" }])
+        setSelectedSlot(null)
+        setBooking(false)
+        return
+      }
+      posthog.capture("coaching_slot_booked", { day: dateStr, slot: selectedSlot })
+      setBookedSlots((prev) => [...prev, { date: dateStr, slot: selectedSlot, status: "PENDING" }])
+      setBooked(true)
+      const msg = buildWhatsAppMessage(selectedDay, selectedSlot)
+      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank")
+    } catch {
+      // En cas d'erreur réseau, ouvrir WhatsApp quand même
+      const msg = buildWhatsAppMessage(selectedDay, selectedSlot)
+      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank")
+    } finally {
+      setBooking(false)
+    }
   }
 
   return (
@@ -142,15 +180,20 @@ export default function CoachingPage() {
             <div className="grid grid-cols-3 gap-2">
               {SLOTS.map((slot) => {
                 const isSelected = selectedSlot === slot
+                const isBooked = isSlotBooked(selectedDay, slot)
                 return (
                   <button
                     key={slot}
-                    onClick={() => setSelectedSlot(slot)}
+                    onClick={() => !isBooked && setSelectedSlot(slot)}
+                    disabled={isBooked}
+                    title={isBooked ? "Créneau déjà réservé" : undefined}
                     className={[
                       "h-11 rounded-xl border-2 text-sm font-semibold transition-colors",
-                      isSelected
-                        ? "border-primary bg-primary text-white"
-                        : "border-gray-100 hover:border-primary/40 text-slate-dark",
+                      isBooked
+                        ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through"
+                        : isSelected
+                          ? "border-primary bg-primary text-white"
+                          : "border-gray-100 hover:border-primary/40 text-slate-dark",
                     ].join(" ")}
                   >
                     {slot}
@@ -172,9 +215,10 @@ export default function CoachingPage() {
             </p>
             <button
               onClick={handleBook}
-              className="w-full h-12 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary-dark shadow-md shadow-orange-100 transition-colors"
+              disabled={booking}
+              className="w-full h-12 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary-dark shadow-md shadow-orange-100 transition-colors disabled:opacity-60"
             >
-              Confirmer sur WhatsApp →
+              {booking ? "Réservation…" : "Confirmer sur WhatsApp →"}
             </button>
             <p className="text-xs text-slate-mid">
               Un message sera envoyé à notre coach pour valider le créneau.

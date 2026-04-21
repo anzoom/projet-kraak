@@ -93,3 +93,21 @@ enum PaymentStatus {
   FAILED
   REFUNDED
 }
+
+model CoachingBooking {
+  id         String                @id @default(cuid())
+  date       String                // "YYYY-MM-DD"
+  slot       String                // "HH:MM"
+  email      String?
+  status     CoachingBookingStatus @default(PENDING)
+  expires_at DateTime
+  created_at DateTime              @default(now())
+
+  @@unique([date, slot])
+}
+
+enum CoachingBookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
