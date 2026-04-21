@@ -1,85 +1,69 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import posthog from "posthog-js"
 
-const CALENDLY_URL = "https://calendly.com/anzoomc/30min"
 const WHATSAPP_NUMBER = "33768251709"
-const WHATSAPP_AFTER_BOOKING = `Bonjour, je viens de réserver un créneau coaching sur KRAAK mais je n'ai pas Zoom. Peut-on organiser l'appel via WhatsApp ?`
 
-const OFFERS = [
-  {
-    id: "audit",
-    emoji: "📋",
-    title: "Audit de dossier",
-    description: "Un expert analyse ton dossier et te donne un plan d'action concret pour maximiser tes chances sur tes opportunités cibles.",
-    features: [
-      "Analyse complète de ton CV et lettre de motivation",
-      "Identification des points forts et points faibles",
-      "Plan d'action prioritaire et personnalisé",
-      "Retour sous 48h",
-    ],
-    cta: "Réserver mon audit",
-    highlight: false,
-  },
-  {
-    id: "accompagnement",
-    emoji: "🎯",
-    title: "Accompagnement complet",
-    description: "Un coach dédié t'accompagne de A à Z sur ta candidature : de la stratégie à la soumission finale.",
-    features: [
-      "Stratégie de candidature personnalisée",
-      "Rédaction et optimisation des documents",
-      "Préparation aux entretiens",
-      "Suivi jusqu'à la décision finale",
-    ],
-    cta: "Réserver un appel",
-    highlight: true,
-  },
-]
+const DAY_NAMES = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"]
+const DAY_NAMES_LONG = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]
+const MONTH_NAMES = ["jan", "fév", "mar", "avr", "mai", "jun", "jul", "aoû", "sep", "oct", "nov", "déc"]
+const MONTH_NAMES_LONG = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
 
-declare global {
-  interface Window {
-    Calendly?: {
-      initPopupWidget: (opts: { url: string }) => void
-    }
+function generateSlots(): string[] {
+  const slots: string[] = []
+  let h = 11, m = 0
+  while (h * 60 + m + 45 <= 16 * 60) {
+    slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`)
+    m += 45
+    if (m >= 60) { h += 1; m -= 60 }
   }
+  return slots
 }
 
+function generateAvailableDays(count = 12): Date[] {
+  const days: Date[] = []
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 1)
+  while (days.length < count) {
+    if (d.getDay() !== 0) days.push(new Date(d))
+    d.setDate(d.getDate() + 1)
+  }
+  return days
+}
+
+const SLOTS = generateSlots()
+const DAYS = generateAvailableDays()
+
 export default function CoachingPage() {
-  const [booked, setBooked] = useState(false)
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  const [weekOffset, setWeekOffset] = useState(0)
 
-  useEffect(() => {
-    const script = document.createElement("script")
-    script.src = "https://assets.calendly.com/assets/external/widget.js"
-    script.async = true
-    document.head.appendChild(script)
+  const visibleDays = DAYS.slice(weekOffset * 6, weekOffset * 6 + 6)
+  const hasNextWeek = (weekOffset + 1) * 6 < DAYS.length
 
-    const link = document.createElement("link")
-    link.rel = "stylesheet"
-    link.href = "https://assets.calendly.com/assets/external/widget.css"
-    document.head.appendChild(link)
+  function handleDaySelect(day: Date) {
+    setSelectedDay(day)
+    setSelectedSlot(null)
+  }
 
-    function handleMessage(e: MessageEvent) {
-      if (e.data?.event === "calendly.event_scheduled") {
-        setBooked(true)
-        posthog.capture("coaching_booked")
-      }
-    }
-    window.addEventListener("message", handleMessage)
+  function buildWhatsAppMessage(day: Date, slot: string): string {
+    const dayLabel = `${DAY_NAMES_LONG[day.getDay()]} ${day.getDate()} ${MONTH_NAMES_LONG[day.getMonth()]}`
+    return `Bonjour, je souhaite réserver un call coaching KRAAK le ${dayLabel} à ${slot}. Est-ce que ce créneau est disponible ?`
+  }
 
-    return () => {
-      document.head.removeChild(script)
-      document.head.removeChild(link)
-      window.removeEventListener("message", handleMessage)
-    }
-  }, [])
-
-  function openCalendly(offerId: string) {
-    posthog.capture("coaching_calendly_clicked", { offer: offerId })
-    window.Calendly?.initPopupWidget({ url: CALENDLY_URL })
+  function handleBook() {
+    if (!selectedDay || !selectedSlot) return
+    posthog.capture("coaching_slot_booked", {
+      day: selectedDay.toISOString().slice(0, 10),
+      slot: selectedSlot,
+    })
+    const msg = buildWhatsAppMessage(selectedDay, selectedSlot)
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank")
   }
 
   return (
@@ -94,98 +78,114 @@ export default function CoachingPage() {
         </Link>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-12">
-        <div className="text-center mb-10">
-          <p className="text-4xl mb-4">🔥</p>
-          <h1 className="text-3xl font-black text-slate-dark tracking-tight mb-3">
-            Maximise tes chances d'acceptation
+      <main className="max-w-lg mx-auto px-4 py-10 space-y-6">
+        <div className="text-center">
+          <p className="text-4xl mb-3">📞</p>
+          <h1 className="text-2xl font-black text-slate-dark tracking-tight mb-2">
+            Réserve ton call coaching
           </h1>
-          <p className="text-slate-mid text-base leading-relaxed max-w-md mx-auto">
-            Nos coachs t'aident à transformer tes opportunités en admissions. Choisis la formule adaptée à ton projet.
+          <p className="text-slate-mid text-sm leading-relaxed">
+            45 min en appel WhatsApp avec un coach. Choisis un créneau disponible.
           </p>
         </div>
 
-        <div className="space-y-4 mb-10">
-          {OFFERS.map((offer) => (
-            <div
-              key={offer.id}
-              id={offer.id === "accompagnement" ? "accompagnement" : undefined}
-              className={[
-                "bg-white rounded-2xl border-2 p-6",
-                offer.highlight ? "border-primary" : "border-gray-100",
-              ].join(" ")}
-            >
-              {offer.highlight && (
-                <span className="inline-flex items-center h-6 px-3 rounded-full bg-primary text-white text-xs font-bold mb-4">
-                  Le plus populaire
-                </span>
-              )}
-              <p className="text-2xl mb-2">{offer.emoji}</p>
-              <h2 className="text-xl font-black text-slate-dark mb-2">{offer.title}</h2>
-              <p className="text-slate-mid text-sm mb-4 leading-relaxed">{offer.description}</p>
-              <ul className="space-y-2 mb-6">
-                {offer.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-slate-dark">
-                    <span className="text-primary mt-0.5">✓</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
+        {/* Sélection du jour */}
+        <div className="bg-white rounded-2xl border-2 border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-slate-dark">Choisis un jour</h2>
+            <div className="flex items-center gap-1">
               <button
-                onClick={() => openCalendly(offer.id)}
-                className={[
-                  "w-full h-12 rounded-full font-bold text-sm transition-colors inline-flex items-center justify-center gap-2",
-                  offer.highlight
-                    ? "bg-primary text-white hover:bg-primary-dark shadow-md shadow-orange-100"
-                    : "border-2 border-primary text-primary hover:bg-primary hover:text-white",
-                ].join(" ")}
+                onClick={() => setWeekOffset((v) => Math.max(0, v - 1))}
+                disabled={weekOffset === 0}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-mid hover:bg-gray-100 disabled:opacity-30 transition-colors"
               >
-                {offer.cta} →
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-3 mt-3">
-                <div className="flex-1 h-px bg-gray-100" />
-                <span className="text-xs text-slate-mid">ou</span>
-                <div className="flex-1 h-px bg-gray-100" />
-              </div>
-              <a
-                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_AFTER_BOOKING)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => posthog.capture("coaching_whatsapp_clicked", { offer: offer.id })}
-                className="w-full h-11 rounded-full border-2 border-gray-200 text-slate-mid font-semibold text-sm hover:border-green-400 hover:text-green-700 transition-colors inline-flex items-center justify-center gap-2 mt-1"
+              <button
+                onClick={() => setWeekOffset((v) => v + 1)}
+                disabled={!hasNextWeek}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-mid hover:bg-gray-100 disabled:opacity-30 transition-colors"
               >
-                Pas de Zoom ? WhatsApp →
-              </a>
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-          ))}
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {visibleDays.map((day) => {
+              const isSelected = selectedDay?.toDateString() === day.toDateString()
+              return (
+                <button
+                  key={day.toISOString()}
+                  onClick={() => handleDaySelect(day)}
+                  className={[
+                    "flex flex-col items-center py-3 rounded-xl border-2 text-xs font-semibold transition-colors",
+                    isSelected
+                      ? "border-primary bg-primary text-white"
+                      : "border-gray-100 hover:border-primary/40 text-slate-dark",
+                  ].join(" ")}
+                >
+                  <span className={isSelected ? "text-white/70" : "text-slate-mid"}>{DAY_NAMES[day.getDay()]}</span>
+                  <span className="text-base font-black mt-0.5">{day.getDate()}</span>
+                  <span className={isSelected ? "text-white/70" : "text-slate-mid"}>{MONTH_NAMES[day.getMonth()]}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        {booked && (
-          <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 text-center mb-6">
-            <p className="text-2xl mb-2">✅</p>
-            <p className="font-bold text-slate-dark mb-1">Créneau réservé !</p>
-            <p className="text-sm text-slate-mid mb-4">
-              Tu vas recevoir un email de confirmation. L'appel se fait par défaut sur Zoom.
+        {/* Sélection du créneau */}
+        {selectedDay && (
+          <div className="bg-white rounded-2xl border-2 border-gray-100 p-5">
+            <h2 className="text-sm font-bold text-slate-dark mb-4">
+              Créneaux disponibles — {DAY_NAMES_LONG[selectedDay.getDay()]} {selectedDay.getDate()} {MONTH_NAMES_LONG[selectedDay.getMonth()]}
+            </h2>
+            <div className="grid grid-cols-3 gap-2">
+              {SLOTS.map((slot) => {
+                const isSelected = selectedSlot === slot
+                return (
+                  <button
+                    key={slot}
+                    onClick={() => setSelectedSlot(slot)}
+                    className={[
+                      "h-11 rounded-xl border-2 text-sm font-semibold transition-colors",
+                      isSelected
+                        ? "border-primary bg-primary text-white"
+                        : "border-gray-100 hover:border-primary/40 text-slate-dark",
+                    ].join(" ")}
+                  >
+                    {slot}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation */}
+        {selectedDay && selectedSlot && (
+          <div className="bg-white rounded-2xl border-2 border-primary/20 p-5 text-center space-y-4">
+            <p className="text-sm text-slate-mid">
+              Tu as choisi le{" "}
+              <span className="font-bold text-slate-dark">
+                {DAY_NAMES_LONG[selectedDay.getDay()]} {selectedDay.getDate()} {MONTH_NAMES_LONG[selectedDay.getMonth()]} à {selectedSlot}
+              </span>
             </p>
-            <p className="text-sm font-semibold text-slate-dark mb-3">
-              Tu n'as pas Zoom ?
-            </p>
-            <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_AFTER_BOOKING)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => posthog.capture("coaching_whatsapp_after_booking")}
-              className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-green-600 text-white font-semibold text-sm hover:bg-green-700 transition-colors"
+            <button
+              onClick={handleBook}
+              className="w-full h-12 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary-dark shadow-md shadow-orange-100 transition-colors"
             >
-              Organiser via WhatsApp →
-            </a>
+              Confirmer sur WhatsApp →
+            </button>
+            <p className="text-xs text-slate-mid">
+              Un message sera envoyé à notre coach pour valider le créneau.
+            </p>
           </div>
         )}
 
         <p className="text-center text-xs text-slate-mid">
-          Tu as des questions ?{" "}
+          Des questions ?{" "}
           <a href="mailto:coaching@kraak.co" className="underline hover:text-slate-dark transition-colors">
-            Contacte-nous
+            coaching@kraak.co
           </a>
         </p>
       </main>
