@@ -1,10 +1,11 @@
 "use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import posthog from "posthog-js"
 
-const WHATSAPP_NUMBER = "33768251709"
+const CALENDLY_URL = "https://calendly.com/anzoomc/30min"
 
 const OFFERS = [
   {
@@ -18,8 +19,7 @@ const OFFERS = [
       "Plan d'action prioritaire et personnalisé",
       "Retour sous 48h",
     ],
-    cta: "Demander un audit",
-    message: "Bonjour, je souhaite demander un audit de dossier via KRAAK. Pouvez-vous me donner plus d'informations ?",
+    cta: "Réserver mon audit",
     highlight: false,
   },
   {
@@ -33,13 +33,42 @@ const OFFERS = [
       "Préparation aux entretiens",
       "Suivi jusqu'à la décision finale",
     ],
-    cta: "Être accompagné",
-    message: "Bonjour, je souhaite être accompagné pour ma candidature via KRAAK. Pouvez-vous me donner plus d'informations ?",
+    cta: "Réserver un appel",
     highlight: true,
   },
 ]
 
+declare global {
+  interface Window {
+    Calendly?: {
+      initPopupWidget: (opts: { url: string }) => void
+    }
+  }
+}
+
 export default function CoachingPage() {
+  useEffect(() => {
+    const script = document.createElement("script")
+    script.src = "https://assets.calendly.com/assets/external/widget.js"
+    script.async = true
+    document.head.appendChild(script)
+
+    const link = document.createElement("link")
+    link.rel = "stylesheet"
+    link.href = "https://assets.calendly.com/assets/external/widget.css"
+    document.head.appendChild(link)
+
+    return () => {
+      document.head.removeChild(script)
+      document.head.removeChild(link)
+    }
+  }, [])
+
+  function openCalendly(offerId: string) {
+    posthog.capture("coaching_calendly_clicked", { offer: offerId })
+    window.Calendly?.initPopupWidget({ url: CALENDLY_URL })
+  }
+
   return (
     <div className="min-h-screen bg-slate-light">
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center">
@@ -89,11 +118,8 @@ export default function CoachingPage() {
                   </li>
                 ))}
               </ul>
-              <a
-                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(offer.message)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => posthog.capture("coaching_whatsapp_clicked", { offer: offer.id })}
+              <button
+                onClick={() => openCalendly(offer.id)}
                 className={[
                   "w-full h-12 rounded-full font-bold text-sm transition-colors inline-flex items-center justify-center gap-2",
                   offer.highlight
@@ -102,7 +128,7 @@ export default function CoachingPage() {
                 ].join(" ")}
               >
                 {offer.cta} →
-              </a>
+              </button>
             </div>
           ))}
         </div>
