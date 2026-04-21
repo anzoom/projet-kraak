@@ -13,6 +13,9 @@ interface PayloadDoc {
   funding_type: string
   deadline?: string | null
   budget_required?: number | null
+  short_description?: string | null
+  source_url?: string | null
+  eligibility_summary?: string | null
 }
 
 interface PayloadResponse {
@@ -39,8 +42,13 @@ export async function fetchOpportunities(): Promise<Opportunity[]> {
       funding_type: doc.funding_type,
       deadline: doc.deadline ?? null,
       budget_required: doc.budget_required ?? null,
+      short_description: doc.short_description ?? null,
+      source_url: doc.source_url ?? null,
+      eligibility_summary: doc.eligibility_summary ?? null,
     }))
-    if (opportunities.length > 0) return opportunities
+    // Seuil minimum : le catalogue Payload doit être suffisamment garni
+    // pour couvrir tous les profils. Sous ce seuil, on utilise le seed.
+    if (opportunities.length >= 10) return opportunities
   } catch {
     // fall through to seed
   }

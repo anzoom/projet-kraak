@@ -24,69 +24,94 @@ Le moteur SHALL exclure une opportunité si son `study_level` est incompatible a
 - **WHEN** `opportunity.study_level = "tous"`
 - **THEN** l'opportunité est éligible quel que soit `academic_level`
 
-### Requirement: Pénalité budget insuffisant
-Le moteur SHALL appliquer une pénalité de -30 au `match_score` si `opportunity.budget_required` dépasse le budget maximum de l'utilisateur, sans exclure l'opportunité.
+### Requirement: Hard filter on category
+Le moteur SHALL exclure toute opportunité dont `category` ne correspond pas exactement à `answers.main_objective` (comparaison normalisée insensible à la casse et aux accents).
 
-#### Scenario: Budget insuffisant pénalisé non exclu
+#### Scenario: Catégorie correspondante retenue
+- **WHEN** `opportunity.category = "bourse"` et `answers.main_objective = "bourse"`
+- **THEN** l'opportunité est éligible au scoring
+
+#### Scenario: Catégorie non correspondante exclue
+- **WHEN** `opportunity.category = "emploi"` et `answers.main_objective = "bourse"`
+- **THEN** l'opportunité est exclue, même si elle cumule un score élevé sur d'autres critères
+
+### Requirement: Hard filter on domain
+Le moteur SHALL exclure toute opportunité dont `domain` ne correspond pas exactement à `answers.domain` (comparaison normalisée).
+
+#### Scenario: Domaine correspondant retenu
+- **WHEN** `opportunity.domain = "commerce"` et `answers.domain = "commerce"`
+- **THEN** l'opportunité est éligible
+
+#### Scenario: Domaine non correspondant exclu
+- **WHEN** `opportunity.domain = "sciences_tech"` et `answers.domain = "commerce"`
+- **THEN** l'opportunité est exclue
+
+#### Scenario: Pas de filtre si domaine non renseigné
+- **WHEN** `answers.domain` est absent ou vide
+- **THEN** aucun filtre domaine n'est appliqué
+
+### Requirement: Hard filter on country
+Le moteur SHALL exclure toute opportunité dont `country` ne correspond pas à `answers.target_country`, sauf si `target_country = "peu_importe"`.
+
+#### Scenario: Pays correspondant retenu
+- **WHEN** `opportunity.country = "france"` et `answers.target_country = "france"`
+- **THEN** l'opportunité est éligible et reçoit le bonus pays (+20)
+
+#### Scenario: Pays non correspondant exclu
+- **WHEN** `opportunity.country = "afrique"` et `answers.target_country = "france"`
+- **THEN** l'opportunité est exclue
+
+#### Scenario: Peu importe — filtre désactivé
+- **WHEN** `answers.target_country = "peu_importe"`
+- **THEN** aucun filtre pays n'est appliqué ; les opportunités à financement complet reçoivent le bonus pays (+20)
+
+### Requirement: Hard filter on country — cible "afrique hors pays d'origine"
+Le moteur SHALL, lorsque `answers.target_country = "afrique"`, inclure uniquement les opportunités dont le `country` est `"afrique"` ou appartient à la liste des pays africains supportés, ET exclure les opportunités dont le `country` correspond au pays d'origine de l'utilisateur (`answers.origin_country`).
+
+#### Scenario: Opportunité africaine hors pays d'origine retenue
+- **WHEN** `answers.target_country = "afrique"` et `opportunity.country = "senegal"` et `answers.origin_country = "cameroun"`
+- **THEN** l'opportunité est éligible et reçoit le bonus pays (+20)
+
+#### Scenario: Opportunité pays d'origine exclue pour cible afrique
+- **WHEN** `answers.target_country = "afrique"` et `opportunity.country = "cameroun"` et `answers.origin_country = "cameroun"`
+- **THEN** l'opportunité est exclue (même pays que le pays d'origine)
+
+#### Scenario: Opportunité générique afrique incluse
+- **WHEN** `answers.target_country = "afrique"` et `opportunity.country = "afrique"`
+- **THEN** l'opportunité est toujours éligible quel que soit le pays d'origine
+
+#### Scenario: Pays africains supportés
+- **WHEN** le filtrage "afrique" est appliqué
+- **THEN** les pays reconnus comme africains sont : benin, burkina_faso, cameroun, cote_ivoire, guinee, mali, rdc, senegal, togo et la valeur générique "afrique"
+
+### Requirement: Score de pertinence additif — classement uniquement
+Le moteur SHALL calculer un `match_score` pour les opportunités ayant passé tous les filtres. Les critères : catégorie (+30), domaine (+25), pays (+20 si target_country spécifié, ou financement complet pour `peu_importe`), financement complet avec budget zéro (+15), deadline dans les 90 prochains jours (+10). Pénalité budget insuffisant (-30).
+
+#### Scenario: Score additif sur résultats filtrés
+- **WHEN** une opportunité passe tous les filtres durs
+- **THEN** son `match_score` est la somme des critères applicables
+
+#### Scenario: Pénalité budget insuffisant
 - **WHEN** `opportunity.budget_required` excède le budget max utilisateur
-- **THEN** l'opportunité reste dans les résultats avec `match_score` réduit de 30
+- **THEN** `match_score` est réduit de 30 (l'opportunité reste visible)
 
-### Requirement: Score de pertinence additif
-Le moteur SHALL calculer un `match_score` additif selon ces critères : catégorie correspond à `main_objective` (+30), domaine contient le domaine utilisateur (+25), pays correspond à `target_country` ou `funding_type = "complete"` pour "peu_importe" (+20), `funding_type = "complete"` quand `budget = "zero"` (+15), deadline dans les 90 prochains jours (+10).
+### Requirement: Deadline dépassée exclue
+Le moteur SHALL exclure les opportunités dont `deadline` est antérieure à la date d'exécution.
 
-#### Scenario: Correspondance catégorie
-- **WHEN** `opportunity.category = answers.main_objective`
-- **THEN** `match_score` reçoit +30
-
-#### Scenario: Correspondance domaine par mots-clés normalisés
-- **WHEN** le domaine de l'opportunité contient le mot-clé normalisé du domaine utilisateur (insensible à la casse, sans accents)
-- **THEN** `match_score` reçoit +25
-
-#### Scenario: Correspondance pays
-- **WHEN** `opportunity.country = answers.target_country`
-- **THEN** `match_score` reçoit +20
-
-#### Scenario: Financement complet pour budget zéro
-- **WHEN** `opportunity.funding_type = "complete"` et `answers.budget = "zero"`
-- **THEN** `match_score` reçoit +15
-
-#### Scenario: Deadline dans 90 jours
-- **WHEN** `opportunity.deadline` est dans les 90 prochains jours à partir de la date d'exécution
-- **THEN** `match_score` reçoit +10
-
-#### Scenario: Deadline dépassée exclue de bonus
-- **WHEN** `opportunity.deadline` est antérieure à la date d'exécution
-- **THEN** aucun bonus deadline n'est accordé
+#### Scenario: Deadline dépassée exclue
+- **WHEN** `opportunity.deadline` est dans le passé
+- **THEN** l'opportunité est exclue
 
 ### Requirement: Tri des recommandations par match_score décroissant
-Le moteur SHALL retourner les `Recommendation[]` triées par `match_score` décroissant. Les opportunités avec le même score conservent leur ordre relatif d'entrée.
+Le moteur SHALL retourner les `Recommendation[]` triées par `match_score` décroissant.
 
 #### Scenario: Tri correct
 - **WHEN** trois opportunités ont `match_score` 75, 45 et 90
 - **THEN** l'ordre retourné est 90, 75, 45
 
 ### Requirement: Génération de justification textuelle
-Chaque `Recommendation` SHALL inclure un champ `justification` : une chaîne concise listant les critères ayant le plus contribué au score.
+Chaque `Recommendation` SHALL inclure un champ `justification` listant les critères ayant contribué au score (3 premiers critères maximum).
 
 #### Scenario: Justification non vide
 - **WHEN** une opportunité obtient un `match_score > 0`
 - **THEN** `justification` est une chaîne non vide décrivant au moins un critère de correspondance
-
-#### Scenario: Justification score zéro
-- **WHEN** une opportunité obtient `match_score = 0`
-- **THEN** `justification` peut indiquer qu'aucun critère ne correspond
-
-### Requirement: Route API POST /api/matching
-La route SHALL accepter `{ score: ScoringOutput, opportunities?: Opportunity[] }`, appeler `matchOpportunities` et retourner `Recommendation[]` avec status 200. Elle ne MUST PAS persister en base. Elle retourne 400 si `score` est absent.
-
-#### Scenario: Appel valide avec opportunités fournies
-- **WHEN** `POST /api/matching` reçoit `{ score: ScoringOutput, opportunities: [...] }`
-- **THEN** la réponse est 200 avec `Recommendation[]` triées par `match_score`
-
-#### Scenario: Appel valide sans opportunités
-- **WHEN** `POST /api/matching` reçoit `{ score: ScoringOutput }` sans `opportunities`
-- **THEN** la réponse est 200 avec un tableau vide `[]`
-
-#### Scenario: score absent
-- **WHEN** `POST /api/matching` reçoit un body sans champ `score`
-- **THEN** la réponse est 400

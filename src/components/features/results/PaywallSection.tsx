@@ -3,14 +3,60 @@ import type { Recommendation } from "@/types/scoring"
 
 interface Props {
   locked: Recommendation[]
+  totalCount: number
+  isAuthenticated?: boolean
 }
 
-export default function PaywallSection({ locked }: Props) {
+export default function PaywallSection({ locked, totalCount, isAuthenticated = false }: Props) {
   if (locked.length === 0) return null
 
   return (
     <div className="w-full">
-      <div className="space-y-3 mb-6">
+      {isAuthenticated ? (
+        // Utilisateur connecté sans accès complet
+        <div className="bg-gradient-to-br from-primary-light to-orange-50 rounded-2xl border-2 border-orange-200 p-6 text-center">
+          <p className="text-2xl mb-2">✨</p>
+          <h3 className="text-lg font-black text-slate-dark mb-2">
+            Débloque tes {totalCount} opportunités
+          </h3>
+          <p className="text-slate-mid text-sm mb-5">
+            Tu es à un pas de découvrir toutes les opportunités qui correspondent à ton profil.
+          </p>
+          <Link
+            href="/auth/register?next=/results"
+            className="inline-flex items-center justify-center w-full h-13 rounded-full bg-primary text-white font-bold text-base hover:bg-primary-dark shadow-md shadow-orange-200 transition-colors"
+          >
+            Débloquer l'accès complet →
+          </Link>
+        </div>
+      ) : (
+        // Utilisateur non connecté — auth gate
+        <div className="bg-gradient-to-br from-primary-light to-orange-50 rounded-2xl border-2 border-orange-200 p-6 text-center">
+          <p className="text-2xl mb-2">🎯</p>
+          <h3 className="text-lg font-black text-slate-dark mb-2">
+            {totalCount} opportunités trouvées pour toi
+          </h3>
+          <p className="text-slate-mid text-sm mb-5">
+            Crée ton compte gratuit en 1 minute pour accéder à toutes tes opportunités personnalisées.
+          </p>
+
+          <Link
+            href="/auth/register?next=/results"
+            className="inline-flex items-center justify-center w-full h-13 rounded-full bg-primary text-white font-bold text-base hover:bg-primary-dark shadow-md shadow-orange-200 transition-colors mb-3"
+          >
+            Créer mon compte gratuit →
+          </Link>
+
+          <Link
+            href="/auth/login?next=/results"
+            className="inline-flex items-center justify-center w-full h-11 rounded-full border-2 border-primary text-primary font-semibold text-sm hover:bg-white transition-colors"
+          >
+            J'ai déjà un compte — Se connecter
+          </Link>
+        </div>
+      )}
+
+      <div className="space-y-3 mt-6">
         {locked.map((rec) => (
           <div
             key={rec.opportunity.id}
@@ -32,36 +78,6 @@ export default function PaywallSection({ locked }: Props) {
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="bg-gradient-to-br from-primary-light to-orange-50 rounded-2xl border-2 border-orange-200 p-6 text-center">
-        <p className="text-2xl mb-2">🔓</p>
-        <h3 className="text-lg font-black text-slate-dark mb-1">
-          {locked.length} opportunité{locked.length > 1 ? "s" : ""} supplémentaire
-          {locked.length > 1 ? "s" : ""} verrouillée{locked.length > 1 ? "s" : ""}
-        </h3>
-        <p className="text-slate-mid text-sm mb-4">
-          Accède à la liste complète de tes recommandations personnalisées avec
-          toutes les informations pour postuler.
-        </p>
-
-        <div className="mb-4">
-          <p className="text-3xl font-black text-slate-dark">
-            2 500 <span className="text-xl">FCFA</span>
-          </p>
-          <p className="text-xs text-slate-mid mt-0.5">Paiement unique — accès immédiat</p>
-        </div>
-
-        <Link
-          href={`/payment?locked_count=${locked.length}`}
-          className="inline-flex items-center justify-center w-full h-13 rounded-full bg-primary text-white font-bold text-base hover:bg-primary-dark shadow-md shadow-orange-200 transition-colors"
-        >
-          Débloquer mes recommandations
-        </Link>
-
-        <p className="text-xs text-slate-mid mt-3">
-          🔒 Accès immédiat et sécurisé · Paiement Mobile Money
-        </p>
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 import { matchOpportunities } from "./matcher"
 import type { MatchInput, Opportunity, ScoringOutput } from "@/types/scoring"
 
@@ -11,16 +11,16 @@ const baseScore: ScoringOutput = {
 }
 
 const baseAnswers = {
-  current_level: "licence_1_2",
+  origin_country: "senegal",
+  current_level: "licence_3",
   main_objective: "bourse",
-  domain: "informatique",
+  domain: "sciences_tech",
   target_country: "france",
   budget: "moyen",
   academic_level: "licence",
   dossier_maturity: "en_cours",
-  main_blocker: "documents",
+  main_blocker: "information",
   timeline: "moyen",
-  invest_readiness: "peut_etre",
 }
 
 function makeOpp(overrides: Partial<Opportunity> = {}): Opportunity {
@@ -30,7 +30,7 @@ function makeOpp(overrides: Partial<Opportunity> = {}): Opportunity {
     is_active: true,
     study_level: "tous",
     category: "bourse",
-    domain: "informatique",
+    domain: "sciences_tech",
     country: "france",
     funding_type: "partial",
     deadline: null,
@@ -48,17 +48,37 @@ function makeInput(overrides: Partial<MatchInput> = {}): MatchInput {
   }
 }
 
-describe("matchOpportunities — filtres d'exclusion", () => {
+// ── Filtres d'exclusion de base ──────────────────────────────────────────────
+
+describe("Filtre — is_active", () => {
   it("exclut les opportunités inactives", () => {
-    const input = makeInput({ opportunities: [makeOpp({ is_active: false })] })
-    expect(matchOpportunities(input)).toHaveLength(0)
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ is_active: false })] }))).toHaveLength(0)
   })
-
   it("inclut les opportunités actives", () => {
-    const input = makeInput({ opportunities: [makeOpp({ is_active: true })] })
-    expect(matchOpportunities(input)).toHaveLength(1)
+    expect(matchOpportunities(makeInput())).toHaveLength(1)
   })
+})
 
+describe("Filtre — deadline expirée", () => {
+  it("exclut les opportunités avec deadline passée", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ deadline: "2020-01-01" })] }))).toHaveLength(0)
+  })
+  it("inclut les opportunités avec deadline future", () => {
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ deadline: future })] }))).toHaveLength(1)
+  })
+  it("inclut les opportunités sans deadline", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ deadline: null })] }))).toHaveLength(1)
+  })
+})
+
+describe("Filtre — study_level / dernier diplôme", () => {
+  it("inclut si study_level = 'tous'", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ study_level: "tous" })] }))).toHaveLength(1)
+  })
+  it("inclut si study_level correspond à academic_level", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ study_level: "licence" })] }))).toHaveLength(1)
+  })
   it("exclut si study_level incompatible avec academic_level", () => {
     const input = makeInput({
       opportunities: [makeOpp({ study_level: "doctorat" })],
@@ -66,167 +86,284 @@ describe("matchOpportunities — filtres d'exclusion", () => {
     })
     expect(matchOpportunities(input)).toHaveLength(0)
   })
+})
 
-  it("inclut si study_level = 'tous'", () => {
-    const input = makeInput({
-      opportunities: [makeOpp({ study_level: "tous" })],
-      answers: { ...baseAnswers, academic_level: "bac" },
-    })
-    expect(matchOpportunities(input)).toHaveLength(1)
+// ── Filtre — objectif principal / category ───────────────────────────────────
+
+describe("Filtre — objectif principal (catégorie)", () => {
+  it("inclut si category === main_objective", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ category: "bourse" })] }))).toHaveLength(1)
   })
-
-  it("inclut si study_level compatible avec academic_level", () => {
-    const input = makeInput({
-      opportunities: [makeOpp({ study_level: "licence" })],
-    })
-    expect(matchOpportunities(input)).toHaveLength(1)
+  it("exclut si category !== main_objective", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ category: "emploi" })] }))).toHaveLength(0)
   })
-
-  it("exclut les opportunités avec deadline dépassée", () => {
+  it("exclut les stages pour un utilisateur cherchant une bourse", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ category: "stage" })] }))).toHaveLength(0)
+  })
+  it("exclut les formations pour un utilisateur cherchant un échange", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ deadline: "2020-01-01" })],
+      opportunities: [makeOpp({ category: "formation" })],
+      answers: { ...baseAnswers, main_objective: "echange" },
     })
     expect(matchOpportunities(input)).toHaveLength(0)
   })
-
-  it("inclut les opportunités avec deadline future", () => {
-    const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
+  it("insensible à la casse et aux accents", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ deadline: future })],
+      opportunities: [makeOpp({ category: "Bourse" })],
     })
     expect(matchOpportunities(input)).toHaveLength(1)
   })
 })
 
-describe("matchOpportunities — score additif", () => {
-  it("+30 si catégorie correspond à main_objective", () => {
-    const input = makeInput({
-      opportunities: [makeOpp({ category: "bourse", domain: "autre", country: "autre" })],
-    })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBeGreaterThanOrEqual(30)
-  })
+// ── Filtre — domaine ─────────────────────────────────────────────────────────
 
-  it("+25 si domaine contient le domaine utilisateur (insensible à la casse)", () => {
-    const input = makeInput({
-      opportunities: [makeOpp({ category: "autre", domain: "Informatique Avancée", country: "autre" })],
-    })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBeGreaterThanOrEqual(25)
+describe("Filtre — domaine", () => {
+  it("inclut si domain === answers.domain", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ domain: "sciences_tech" })] }))).toHaveLength(1)
   })
-
-  it("+20 si pays correspond à target_country", () => {
-    const input = makeInput({
-      opportunities: [makeOpp({ category: "autre", domain: "autre", country: "france" })],
-    })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBeGreaterThanOrEqual(20)
+  it("exclut si domain !== answers.domain", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ domain: "commerce" })] }))).toHaveLength(0)
   })
-
-  it("+20 si target_country=peu_importe et funding_type=complete", () => {
+  it("exclut si domain est un sous-ensemble (plus de .includes)", () => {
+    // "sciences_tech" ne doit pas matcher un domaine "sciences"
     const input = makeInput({
-      opportunities: [makeOpp({ category: "autre", domain: "autre", country: "japon", funding_type: "complete" })],
-      answers: { ...baseAnswers, target_country: "peu_importe" },
+      opportunities: [makeOpp({ domain: "sciences_sociales" })],
+      answers: { ...baseAnswers, domain: "sciences" },
     })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBeGreaterThanOrEqual(20)
+    expect(matchOpportunities(input)).toHaveLength(0)
   })
-
-  it("+15 si funding_type=complete et budget=zero", () => {
+  it("ne filtre pas si answers.domain est vide", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ category: "autre", domain: "autre", country: "autre", funding_type: "complete" })],
-      answers: { ...baseAnswers, budget: "zero" },
+      opportunities: [makeOpp({ domain: "commerce" })],
+      answers: { ...baseAnswers, domain: "" },
     })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBeGreaterThanOrEqual(15)
-  })
-
-  it("+10 si deadline dans les 90 prochains jours", () => {
-    const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    const input = makeInput({
-      opportunities: [makeOpp({ category: "autre", domain: "autre", country: "autre", deadline: soon })],
-    })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBeGreaterThanOrEqual(10)
-  })
-
-  it("aucun bonus si deadline > 90 jours", () => {
-    const far = new Date(Date.now() + 200 * 24 * 60 * 60 * 1000).toISOString()
-    const input = makeInput({
-      opportunities: [makeOpp({ category: "autre", domain: "autre", country: "autre", deadline: far })],
-    })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBe(0)
-  })
-
-  it("score maximum si tous les critères correspondent", () => {
-    const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    const input = makeInput({
-      opportunities: [makeOpp({ category: "bourse", domain: "informatique", country: "france", funding_type: "partial", deadline: soon })],
-    })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBe(30 + 25 + 20 + 10)
+    expect(matchOpportunities(input)).toHaveLength(1)
   })
 })
 
-describe("matchOpportunities — pénalité budget", () => {
-  it("-30 si budget_required dépasse le budget max utilisateur (non exclu)", () => {
+// ── Filtre — pays cible ──────────────────────────────────────────────────────
+
+describe("Filtre — pays / région cible", () => {
+  it("inclut si country === target_country", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ country: "france" })] }))).toHaveLength(1)
+  })
+  it("exclut si country !== target_country", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ country: "canada" })] }))).toHaveLength(0)
+  })
+  it("peu_importe — inclut toutes les opportunités", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ category: "bourse", budget_required: 200_000 })],
-      answers: { ...baseAnswers, budget: "petit" },
+      opportunities: [makeOpp({ country: "usa" }), makeOpp({ id: "2", country: "canada" })],
+      answers: { ...baseAnswers, target_country: "peu_importe" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(2)
+  })
+  it("afrique — inclut uniquement les opportunités country=afrique", () => {
+    const input = makeInput({
+      opportunities: [
+        makeOpp({ id: "af", country: "afrique" }),
+        makeOpp({ id: "fr", country: "france" }),
+      ],
+      answers: { ...baseAnswers, target_country: "afrique" },
     })
     const result = matchOpportunities(input)
     expect(result).toHaveLength(1)
-    expect(result[0].match_score).toBe(30 + 25 + 20 - 30)
+    expect(result[0].opportunity.id).toBe("af")
   })
-
-  it("pas de pénalité si budget_required est null", () => {
+  it("europe — correspondance exacte", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ category: "bourse", budget_required: null })],
-      answers: { ...baseAnswers, budget: "zero" },
+      opportunities: [makeOpp({ country: "europe" })],
+      answers: { ...baseAnswers, target_country: "europe" },
     })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBeGreaterThanOrEqual(30)
+    expect(matchOpportunities(input)).toHaveLength(1)
   })
 })
 
-describe("matchOpportunities — tri", () => {
+// ── Filtre — budget ───────────────────────────────────────────────────────────
+
+describe("Filtre — budget", () => {
+  it("inclut si budget_required est null (pas de frais renseignés)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ budget_required: null })],
+      answers: { ...baseAnswers, budget: "zero" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("inclut si budget_required = 0 et budget = zero", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ budget_required: 0 })],
+      answers: { ...baseAnswers, budget: "zero" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("exclut si budget_required dépasse le budget max utilisateur", () => {
+    // budget "petit" → max 100_000 FCFA ; oppo requiert 200_000
+    const input = makeInput({
+      opportunities: [makeOpp({ budget_required: 200_000 })],
+      answers: { ...baseAnswers, budget: "petit" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("exclut si budget_required > 0 et budget = zero", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ budget_required: 50_000 })],
+      answers: { ...baseAnswers, budget: "zero" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("inclut si budget_required <= budget max utilisateur", () => {
+    // budget "moyen" → max 500_000 FCFA ; oppo requiert 300_000
+    const input = makeInput({
+      opportunities: [makeOpp({ budget_required: 300_000 })],
+      answers: { ...baseAnswers, budget: "moyen" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("confortable — inclut toujours (pas de limite)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ budget_required: 10_000_000 })],
+      answers: { ...baseAnswers, budget: "confortable" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+})
+
+// ── Filtre — horizon de départ (timeline) ────────────────────────────────────
+
+describe("Filtre — horizon de départ", () => {
+  const daysFromNow = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString()
+
+  it("null deadline passe toujours le filtre timeline", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: null })],
+      answers: { ...baseAnswers, timeline: "urgent" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("urgent — inclut si deadline dans 90 jours", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: daysFromNow(60) })],
+      answers: { ...baseAnswers, timeline: "urgent" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("urgent — exclut si deadline > 90 jours", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: daysFromNow(120) })],
+      answers: { ...baseAnswers, timeline: "urgent" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("court — inclut si deadline dans 180 jours", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: daysFromNow(150) })],
+      answers: { ...baseAnswers, timeline: "court" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("court — exclut si deadline > 180 jours", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: daysFromNow(200) })],
+      answers: { ...baseAnswers, timeline: "court" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("moyen — inclut si deadline dans 365 jours", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: daysFromNow(300) })],
+      answers: { ...baseAnswers, timeline: "moyen" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("moyen — exclut si deadline > 365 jours", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: daysFromNow(400) })],
+      answers: { ...baseAnswers, timeline: "moyen" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("long — inclut toujours (pas de limite haute)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: daysFromNow(600) })],
+      answers: { ...baseAnswers, timeline: "long" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+})
+
+// ── Scoring et classement ────────────────────────────────────────────────────
+
+describe("Scoring — bonus", () => {
+  it("+30 catégorie (toujours après filtre)", () => {
+    const result = matchOpportunities(makeInput())
+    expect(result[0].match_score).toBeGreaterThanOrEqual(30)
+  })
+  it("+25 domaine (toujours si domaine renseigné)", () => {
+    const result = matchOpportunities(makeInput())
+    expect(result[0].match_score).toBeGreaterThanOrEqual(55)
+  })
+  it("+20 pays (toujours pour cible spécifique)", () => {
+    const result = matchOpportunities(makeInput())
+    expect(result[0].match_score).toBeGreaterThanOrEqual(75)
+  })
+  it("+15 financement complet si budget=zero", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ funding_type: "complete", budget_required: 0 })],
+      answers: { ...baseAnswers, budget: "zero" },
+    })
+    const result = matchOpportunities(input)
+    expect(result[0].match_score).toBe(30 + 25 + 20 + 15)
+  })
+  it("+10 deadline dans 90 jours", () => {
+    const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const input = makeInput({ opportunities: [makeOpp({ deadline: soon })] })
+    const result = matchOpportunities(input)
+    expect(result[0].match_score).toBe(30 + 25 + 20 + 10)
+  })
+  it("score maximum : tous les bonus", () => {
+    const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const input = makeInput({
+      opportunities: [makeOpp({ funding_type: "complete", deadline: soon, budget_required: 0 })],
+      answers: { ...baseAnswers, budget: "zero" },
+    })
+    const result = matchOpportunities(input)
+    expect(result[0].match_score).toBe(30 + 25 + 20 + 15 + 10)
+  })
+  it("pas de bonus pays pour peu_importe sans financement complet", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ funding_type: "partial" })],
+      answers: { ...baseAnswers, target_country: "peu_importe" },
+    })
+    const result = matchOpportunities(input)
+    expect(result[0].match_score).toBe(30 + 25)
+  })
+})
+
+describe("Scoring — tri décroissant", () => {
   it("trie par match_score décroissant", () => {
     const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     const opps: Opportunity[] = [
-      makeOpp({ id: "low", category: "autre", domain: "autre", country: "autre", deadline: soon }),
-      makeOpp({ id: "high", category: "bourse", domain: "informatique", country: "france" }),
-      makeOpp({ id: "mid", category: "bourse", domain: "autre", country: "autre" }),
+      makeOpp({ id: "base", funding_type: "partial", deadline: null }),
+      makeOpp({ id: "with_deadline", funding_type: "partial", deadline: soon }),
+      makeOpp({ id: "complete_funding", funding_type: "complete", deadline: soon, budget_required: 0 }),
     ]
-    const result = matchOpportunities(makeInput({ opportunities: opps }))
-    expect(result[0].opportunity.id).toBe("high")
+    const result = matchOpportunities(makeInput({
+      opportunities: opps,
+      answers: { ...baseAnswers, budget: "zero" },
+    }))
+    expect(result[0].opportunity.id).toBe("complete_funding")
     expect(result[result.length - 1].match_score).toBeLessThanOrEqual(result[0].match_score)
   })
 })
 
-describe("matchOpportunities — justification", () => {
-  it("justification non vide si match_score > 0", () => {
-    const input = makeInput({
-      opportunities: [makeOpp({ category: "bourse" })],
-    })
-    const result = matchOpportunities(input)
+// ── Cas limites ───────────────────────────────────────────────────────────────
+
+describe("Cas limites", () => {
+  it("retourne [] si la liste est vide", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [] }))).toEqual([])
+  })
+  it("justification non vide si match", () => {
+    const result = matchOpportunities(makeInput())
     expect(result[0].justification).toBeTruthy()
     expect(result[0].justification.length).toBeGreaterThan(0)
-  })
-
-  it("justification indique absence de correspondance si score = 0", () => {
-    const input = makeInput({
-      opportunities: [makeOpp({ category: "autre", domain: "autre", country: "autre" })],
-    })
-    const result = matchOpportunities(input)
-    expect(result[0].match_score).toBe(0)
-    expect(result[0].justification).toMatch(/aucun/)
-  })
-})
-
-describe("matchOpportunities — liste vide", () => {
-  it("retourne [] si opportunities est vide", () => {
-    const input = makeInput({ opportunities: [] })
-    expect(matchOpportunities(input)).toEqual([])
   })
 })

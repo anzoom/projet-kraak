@@ -13,6 +13,7 @@ export default function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromTest = searchParams.get("from") === "test"
+  const nextPath = searchParams.get("next") ?? (fromTest ? "/results" : "/")
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -28,8 +29,8 @@ export default function RegisterForm() {
     setLoading(true)
 
     const supabase = createSupabaseBrowserClient()
-    const emailRedirectTo = fromTest
-      ? `${window.location.origin}/auth/callback?next=/results&from=test`
+    const emailRedirectTo = nextPath !== "/"
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
       : `${window.location.origin}/auth/callback`
 
     const { data, error: signUpError } = await supabase.auth.signUp({
@@ -58,10 +59,8 @@ export default function RegisterForm() {
     // Session immédiate = confirmation désactivée
     if (fromTest) {
       await triggerScoring()
-      router.push("/results")
-    } else {
-      router.push("/")
     }
+    router.push(nextPath)
   }
 
   async function triggerScoring() {
@@ -89,8 +88,8 @@ export default function RegisterForm() {
   async function handleResend() {
     setResendLoading(true)
     const supabase = createSupabaseBrowserClient()
-    const emailRedirectTo = fromTest
-      ? `${window.location.origin}/auth/callback?next=/results&from=test`
+    const emailRedirectTo = nextPath !== "/"
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
       : `${window.location.origin}/auth/callback`
     await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo } })
     setResendSent(true)

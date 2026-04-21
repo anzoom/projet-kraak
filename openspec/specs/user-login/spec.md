@@ -3,7 +3,7 @@ La page `/auth/login` SHALL afficher un formulaire avec les champs email et mot 
 
 #### Scenario: Affichage de la page login
 - **WHEN** l'utilisateur navigue vers `/auth/login`
-- **THEN** la page affiche un formulaire avec les champs email, mot de passe et un bouton "Se connecter"
+- **THEN** la page affiche un formulaire avec les champs email, mot de passe, un lien "Mot de passe oublié ?" et un bouton "Se connecter"
 
 #### Scenario: Connexion réussie
 - **WHEN** l'utilisateur soumet des identifiants valides
@@ -18,7 +18,7 @@ La page `/auth/login` SHALL afficher un formulaire avec les champs email et mot 
 - **THEN** la validation HTML5 native empêche la soumission
 
 ### Requirement: Redirection contextuelle après connexion
-Après une connexion réussie, le système SHALL rediriger l'utilisateur vers l'URL spécifiée dans `?next` si présente et valide (chemin relatif uniquement), sinon vers `/`.
+Après une connexion réussie, le système SHALL rediriger l'utilisateur vers l'URL spécifiée dans `?next` si présente et valide (chemin relatif uniquement), sinon vers `/results`.
 
 #### Scenario: Redirection vers next
 - **WHEN** la connexion réussit et l'URL contient `?next=/results`
@@ -26,18 +26,59 @@ Après une connexion réussie, le système SHALL rediriger l'utilisateur vers l'
 
 #### Scenario: Redirection par défaut
 - **WHEN** la connexion réussit et aucun paramètre `?next` n'est présent
-- **THEN** l'utilisateur est redirigé vers `/`
+- **THEN** l'utilisateur est redirigé vers `/results`
 
 #### Scenario: Paramètre next rejeté si URL absolue
 - **WHEN** `?next` contient une URL absolue (ex. `https://example.com`)
-- **THEN** l'utilisateur est redirigé vers `/` (protection open redirect)
+- **THEN** l'utilisateur est redirigé vers `/results` (protection open redirect)
 
-### Requirement: Lien vers la page d'inscription
-La page `/auth/login` SHALL afficher un lien vers `/auth/register` pour les utilisateurs sans compte.
+### Requirement: Workflow login-first post-test
+Après la complétion du test de profil, l'utilisateur SHALL être redirigé vers `/auth/login?from=test`. Le formulaire SHALL adapter son sous-titre et son lien "Créer un compte" selon ce contexte.
 
-#### Scenario: Lien d'inscription visible
-- **WHEN** la page `/auth/login` est affichée
-- **THEN** un lien "Créer un compte" ou similaire est visible et navigue vers `/auth/register`
+#### Scenario: Sous-titre contextuel post-test
+- **WHEN** `LoginForm` est affiché avec `?from=test`
+- **THEN** le sous-titre est "Tu as terminé le test ! Connecte-toi pour accéder à tes résultats."
+
+#### Scenario: Lien Créer un compte avec contexte test propagé
+- **WHEN** `?from=test` est présent et l'utilisateur clique "Créer un compte"
+- **THEN** la navigation va vers `/auth/register?from=test`
+
+### Requirement: Lien mot de passe oublié
+La page `/auth/login` SHALL afficher un lien "Mot de passe oublié ?" sous le champ mot de passe, pointant vers `/auth/forgot-password`.
+
+#### Scenario: Lien affiché et navigable
+- **WHEN** l'utilisateur accède à `/auth/login`
+- **THEN** le lien "Mot de passe oublié ?" est visible et pointe vers `/auth/forgot-password`
+
+### Requirement: Page de demande de réinitialisation mot de passe
+La page `/auth/forgot-password` SHALL permettre à l'utilisateur de soumettre son email pour recevoir un lien de réinitialisation via `supabase.auth.resetPasswordForEmail`.
+
+#### Scenario: Email soumis avec succès
+- **WHEN** l'utilisateur soumet un email valide
+- **THEN** un email de réinitialisation est envoyé et l'écran de confirmation affiche l'adresse
+
+#### Scenario: Erreur Supabase
+- **WHEN** l'appel `resetPasswordForEmail` échoue
+- **THEN** un message d'erreur est affiché, le formulaire reste accessible
+
+### Requirement: Page de saisie du nouveau mot de passe
+La page `/auth/update-password` SHALL permettre à l'utilisateur (session active après échange du code PKCE) de définir un nouveau mot de passe via `supabase.auth.updateUser`.
+
+#### Scenario: Mots de passe non identiques
+- **WHEN** les deux champs mot de passe ne correspondent pas
+- **THEN** une erreur est affichée sans appel API
+
+#### Scenario: Mot de passe trop court
+- **WHEN** le mot de passe est inférieur à 8 caractères
+- **THEN** une erreur est affichée sans appel API
+
+#### Scenario: Mise à jour réussie
+- **WHEN** `supabase.auth.updateUser({ password })` réussit
+- **THEN** l'utilisateur est redirigé vers `/results`
+
+#### Scenario: Lien expiré
+- **WHEN** `supabase.auth.updateUser` retourne une erreur
+- **THEN** un message explicite sur l'expiration possible du lien est affiché
 
 ### Requirement: Déconnexion
 La route `GET /auth/logout` SHALL appeler Supabase `signOut`, supprimer le cookie de session, et rediriger vers `/`.

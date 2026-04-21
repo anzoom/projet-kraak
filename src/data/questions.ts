@@ -2,6 +2,22 @@ import type { Question } from "@/types/test"
 
 export const questions: Question[] = [
   {
+    id: "origin_country",
+    text: "De quel pays viens-tu ?",
+    options: [
+      { value: "benin", label: "Bénin" },
+      { value: "burkina_faso", label: "Burkina Faso" },
+      { value: "cameroun", label: "Cameroun" },
+      { value: "cote_ivoire", label: "Côte d'Ivoire" },
+      { value: "guinee", label: "Guinée" },
+      { value: "mali", label: "Mali" },
+      { value: "rdc", label: "RD Congo" },
+      { value: "senegal", label: "Sénégal" },
+      { value: "togo", label: "Togo" },
+      { value: "autre", label: "Autre pays africain" },
+    ],
+  },
+  {
     id: "current_level",
     text: "Quel est ton niveau actuel ?",
     options: [
@@ -9,7 +25,7 @@ export const questions: Question[] = [
       { value: "licence_1_2", label: "Licence 1 ou 2 (Bac+1/+2)" },
       { value: "licence_3", label: "Licence 3 (Bac+3)" },
       { value: "master", label: "Master / Grande École (Bac+4/+5)" },
-      { value: "diplome", label: "Diplômé en repositionnement" },
+      { value: "doctorat", label: "Doctorat" },
     ],
   },
   {
@@ -19,8 +35,8 @@ export const questions: Question[] = [
       { value: "bourse", label: "Obtenir une bourse d'études" },
       { value: "formation", label: "Intégrer une formation ou école" },
       { value: "echange", label: "Faire un programme d'échange" },
-      { value: "stage", label: "Trouver un stage ou une alternance" },
-      { value: "emploi", label: "Décrocher un premier emploi" },
+      { value: "stage", label: "Trouver un stage" },
+      { value: "emploi", label: "Trouver un emploi" },
     ],
   },
   {
@@ -32,20 +48,13 @@ export const questions: Question[] = [
       { value: "droit_sciences_po", label: "Droit & Sciences politiques" },
       { value: "sante", label: "Santé & Médecine" },
       { value: "sciences_sociales", label: "Sciences sociales & Humanités" },
-      { value: "arts_com", label: "Arts, Design & Communication" },
+      { value: "lettres_arts", label: "Arts, Design & Communication" },
     ],
   },
   {
     id: "target_country",
     text: "Dans quel pays ou région tu voudrais aller ?",
-    options: [
-      { value: "france", label: "France" },
-      { value: "canada", label: "Canada" },
-      { value: "usa", label: "États-Unis" },
-      { value: "europe", label: "Europe (Allemagne, Belgique, Pays-Bas…)" },
-      { value: "afrique", label: "Afrique (hors mon pays)" },
-      { value: "peu_importe", label: "Peu importe, je suis ouvert(e)" },
-    ],
+    options: [],
   },
   {
     id: "budget",
@@ -97,16 +106,6 @@ export const questions: Question[] = [
       { value: "court", label: "Dans 3 à 6 mois" },
       { value: "moyen", label: "Dans 6 à 12 mois" },
       { value: "long", label: "Dans plus d'un an" },
-    ],
-  },
-  {
-    id: "invest_readiness",
-    text: "Es-tu prêt(e) à investir un petit montant pour accéder à tes recommandations complètes ?",
-    options: [
-      { value: "oui_certain", label: "Oui, si ça m'aide vraiment à avancer" },
-      { value: "peut_etre", label: "Peut-être, selon ce que je reçois" },
-      { value: "non_gratuit", label: "Je préfère un accès gratuit pour l'instant" },
-      { value: "non_certain", label: "Non, je ne suis pas prêt(e) à payer" },
     ],
   },
 ]

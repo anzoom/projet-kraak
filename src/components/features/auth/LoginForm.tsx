@@ -20,6 +20,7 @@ export default function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get("next")
+  const fromTest = searchParams.get("from") === "test"
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -57,7 +58,9 @@ export default function LoginForm() {
         Connexion
       </h1>
       <p className="text-slate-mid text-sm mb-8">
-        Accède à tes résultats et recommandations
+        {fromTest
+          ? "Tu as terminé le test ! Connecte-toi pour accéder à tes résultats."
+          : "Accède à tes résultats et recommandations"}
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -99,6 +102,15 @@ export default function LoginForm() {
           </p>
         )}
 
+        <div className="flex justify-end -mt-1">
+          <Link
+            href="/auth/forgot-password"
+            className="text-xs text-slate-mid hover:text-primary transition-colors"
+          >
+            Mot de passe oublié ?
+          </Link>
+        </div>
+
         <button
           type="submit"
           disabled={loading}
@@ -115,7 +127,10 @@ export default function LoginForm() {
 
       <p className="mt-6 text-center text-sm text-slate-mid">
         Pas encore de compte —{" "}
-        <Link href="/auth/register" className="text-primary font-medium hover:underline">
+        <Link
+          href={fromTest ? "/auth/register?from=test" : "/auth/register"}
+          className="text-primary font-medium hover:underline"
+        >
           Créer un compte
         </Link>
       </p>

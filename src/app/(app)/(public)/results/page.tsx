@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { createSupabaseServerAnonClient } from "@/lib/supabase/server"
 import { fetchOpportunities } from "@/lib/opportunities"
-import { prisma } from "@/lib/prisma"
 import ResultsClient from "@/components/features/results/ResultsClient"
 
 export const metadata: Metadata = {
@@ -21,28 +20,8 @@ export default async function ResultsPage({
     searchParams,
   ])
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const { data: { user } } = await supabase.auth.getUser()
   const needsScoring = params.needs_scoring === "true"
-
-  // Vérification server-side du PurchaseAccess
-  let hasAccess = false
-  if (user) {
-    const prismaUser = await prisma.user.findUnique({
-      where: { supabase_uid: user.id },
-    })
-    if (prismaUser) {
-      const access = await prisma.purchaseAccess.findFirst({
-        where: {
-          user_id: prismaUser.id,
-          expires_at: { gt: new Date() },
-        },
-      })
-      hasAccess = access !== null
-    }
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-light">
@@ -64,7 +43,7 @@ export default async function ResultsPage({
         <ResultsClient
           opportunities={opportunities}
           needsScoring={needsScoring}
-          hasAccess={hasAccess}
+          isAuthenticated={!!user}
         />
       </main>
     </div>

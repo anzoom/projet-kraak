@@ -1,6 +1,0 @@
-// TODO — Étape 4 : révocation accès (admin Payload uniquement)
-import { NextResponse } from "next/server"
-
-export async function POST() {
-  return NextResponse.json({ message: "Not implemented yet" }, { status: 501 })
-}

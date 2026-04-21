@@ -2,21 +2,31 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Bookmark } from "lucide-react"
 import Link from "next/link"
 import type { ScoringOutput, Opportunity, Recommendation } from "@/types/scoring"
 import { matchOpportunities } from "@/domain/matching/matcher"
+import { useSavedOpportunities } from "@/hooks/useSavedOpportunities"
 import ScoreCard from "./ScoreCard"
 import RecommendationCard from "./RecommendationCard"
 import PaywallSection from "./PaywallSection"
+import CoachingUpsell from "./CoachingUpsell"
 
 const STORAGE_KEY_SESSION = "kraak_anonymous_session"
 const STORAGE_KEY_RESULT = "kraak_scoring_result"
-const FREE_LIMIT = 2
+const MAX_RESULTS = 5
+
+function answersMatch(a: Record<string, string>, b: Record<string, string>): boolean {
+  const keysA = Object.keys(a)
+  const keysB = Object.keys(b)
+  if (keysA.length !== keysB.length) return false
+  return keysA.every((k) => a[k] === b[k])
+}
 
 interface Props {
   opportunities: Opportunity[]
   needsScoring?: boolean
-  hasAccess?: boolean
+  isAuthenticated?: boolean
 }
 
 type State =
@@ -24,8 +34,10 @@ type State =
   | { status: "no_data" }
   | { status: "ready"; score: ScoringOutput; recommendations: Recommendation[] }
 
-export default function ResultsClient({ opportunities, needsScoring = false, hasAccess = false }: Props) {
+export default function ResultsClient({ opportunities, needsScoring = false, isAuthenticated = false }: Props) {
   const [state, setState] = useState<State>({ status: "loading" })
+  const [showFavorites, setShowFavorites] = useState(false)
+  const { isSaved, count: savedCount } = useSavedOpportunities()
   const router = useRouter()
 
   useEffect(() => {
@@ -34,40 +46,43 @@ export default function ResultsClient({ opportunities, needsScoring = false, has
         let score: ScoringOutput | null = null
         let answers: Record<string, string> | null = null
 
-        // Skip cache when coming from email confirmation — force fresh scoring
-        if (!needsScoring) {
+        // Always read current session answers first
+        const sessionRaw = localStorage.getItem(STORAGE_KEY_SESSION)
+        if (sessionRaw) {
+          const session = JSON.parse(sessionRaw) as {
+            state?: { answers?: Record<string, string> }
+            answers?: Record<string, string>
+          }
+          // Zustand persist wraps state as { state: { answers }, version }
+          answers = session.state?.answers ?? session.answers ?? null
+        }
+
+        // Use cache only if not forced to re-score and answers haven't changed
+        if (!needsScoring && answers) {
           const cached = localStorage.getItem(STORAGE_KEY_RESULT)
           if (cached) {
             const parsed = JSON.parse(cached) as {
               score: ScoringOutput
               answers?: Record<string, string>
             }
-            score = parsed.score
-            answers = parsed.answers ?? null
+            if (parsed.answers && answersMatch(parsed.answers, answers)) {
+              score = parsed.score
+            }
           }
         }
 
-        if (!score) {
-          const sessionRaw = localStorage.getItem(STORAGE_KEY_SESSION)
-          if (sessionRaw) {
-            const session = JSON.parse(sessionRaw) as {
-              answers?: Record<string, string>
-            }
-            answers = session.answers ?? null
-            if (answers && Object.keys(answers).length > 0) {
-              const res = await fetch("/api/scoring", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ answers }),
-              })
-              if (res.ok) {
-                score = (await res.json()) as ScoringOutput
-                localStorage.setItem(
-                  STORAGE_KEY_RESULT,
-                  JSON.stringify({ answers, score }),
-                )
-              }
-            }
+        if (!score && answers && Object.keys(answers).length > 0) {
+          const res = await fetch("/api/scoring", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ answers }),
+          })
+          if (res.ok) {
+            score = (await res.json()) as ScoringOutput
+            localStorage.setItem(
+              STORAGE_KEY_RESULT,
+              JSON.stringify({ answers, score }),
+            )
           }
         }
 
@@ -87,6 +102,16 @@ export default function ResultsClient({ opportunities, needsScoring = false, has
           opportunities,
         })
 
+        if (isAuthenticated) {
+          try {
+            fetch("/api/user/save-test-response", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ answers }),
+            })
+          } catch {}
+        }
+
         setState({ status: "ready", score, recommendations })
       } catch {
         setState({ status: "no_data" })
@@ -94,7 +119,7 @@ export default function ResultsClient({ opportunities, needsScoring = false, has
     }
 
     load()
-  }, [opportunities, needsScoring, router])
+  }, [opportunities, needsScoring, router, isAuthenticated])
 
   if (state.status === "loading") {
     return (
@@ -124,8 +149,14 @@ export default function ResultsClient({ opportunities, needsScoring = false, has
   }
 
   const { score, recommendations } = state
-  const free = hasAccess ? recommendations : recommendations.slice(0, FREE_LIMIT)
-  const locked = hasAccess ? [] : recommendations.slice(FREE_LIMIT)
+
+  const capped = recommendations.slice(0, MAX_RESULTS)
+  const free = isAuthenticated ? capped : []
+  const locked = isAuthenticated ? [] : capped
+
+  const displayedFree = showFavorites
+    ? free.filter((rec) => isSaved(rec.opportunity.id))
+    : free
 
   return (
     <div className="w-full max-w-lg space-y-6">
@@ -144,21 +175,47 @@ export default function ResultsClient({ opportunities, needsScoring = false, has
       ) : (
         <>
           <div>
-            <h2 className="text-lg font-black text-slate-dark mb-3">
-              Tes recommandations
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-black text-slate-dark">
+                Tes recommandations
+              </h2>
+              {savedCount > 0 && (
+                <button
+                  onClick={() => setShowFavorites((v) => !v)}
+                  className={[
+                    "inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-semibold transition-colors",
+                    showFavorites
+                      ? "bg-primary text-white"
+                      : "bg-orange-50 text-primary hover:bg-orange-100",
+                  ].join(" ")}
+                >
+                  <Bookmark className="w-3 h-3" fill={showFavorites ? "currentColor" : "none"} />
+                  Mes favoris ({savedCount})
+                </button>
+              )}
+            </div>
             <div className="space-y-3">
-              {free.map((rec, i) => (
-                <RecommendationCard
-                  key={rec.opportunity.id}
-                  recommendation={rec}
-                  rank={i + 1}
-                />
-              ))}
+              {displayedFree.length === 0 && showFavorites ? (
+                <p className="text-sm text-slate-mid text-center py-4">
+                  Aucune opportunité sauvegardée pour ce profil.
+                </p>
+              ) : (
+                displayedFree.map((rec, i) => (
+                  <RecommendationCard
+                    key={rec.opportunity.id}
+                    recommendation={rec}
+                    rank={i + 1}
+                  />
+                ))
+              )}
             </div>
           </div>
 
-          {locked.length > 0 && <PaywallSection locked={locked} />}
+          {isAuthenticated && free.length > 0 && !showFavorites && (
+            <CoachingUpsell recommendations={free} />
+          )}
+
+          {locked.length > 0 && <PaywallSection locked={locked} totalCount={capped.length} isAuthenticated={isAuthenticated} />}
         </>
       )}
     </div>

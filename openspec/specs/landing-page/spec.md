@@ -9,16 +9,38 @@ La landing page SHALL afficher la promesse principale de KRAAK en moins de 2 lig
 - **WHEN** l'utilisateur clique sur le bouton "Tester mon profil"
 - **THEN** il est redirigé vers `/test` sans rechargement de page
 
-### Requirement: Navigation principale
-La page SHALL inclure une barre de navigation en haut avec le logo/nom KRAAK et un bouton secondaire "Démarrer le test", sticky sur desktop et fixe sur mobile.
+### Requirement: Navigation principale contextuelle selon session
+La barre de navigation SHALL afficher des CTAs différents selon l'état de session de l'utilisateur : "Mes résultats" pour les utilisateurs connectés, "Se connecter" + "S'inscrire" pour les utilisateurs non connectés.
 
 #### Scenario: Logo KRAAK affiché
 - **WHEN** la page est chargée
 - **THEN** le nom "KRAAK" est affiché de manière proéminente dans la navbar
 
-#### Scenario: CTA de navigation cliquable
-- **WHEN** l'utilisateur clique sur le bouton de navigation "Démarrer le test"
-- **THEN** il est redirigé vers `/test`
+#### Scenario: Navbar — utilisateur connecté
+- **WHEN** un utilisateur avec une session Supabase active charge la page d'accueil
+- **THEN** la navbar affiche un bouton "Mes résultats" (orange) liant vers `/results`, sans bouton "Se connecter" ni "S'inscrire"
+
+#### Scenario: Navbar — utilisateur non connecté
+- **WHEN** un utilisateur sans session charge la page d'accueil
+- **THEN** la navbar affiche un lien texte "Se connecter" (liant vers `/auth/login`) et un bouton orange "S'inscrire" (liant vers `/auth/register`)
+
+### Requirement: Hero Section contextuelle selon session
+La Hero Section SHALL afficher des CTAs et un message différents selon l'état de session de l'utilisateur.
+
+#### Scenario: Hero — utilisateur connecté
+- **WHEN** un utilisateur avec une session Supabase active charge la page d'accueil
+- **THEN** la Hero Section affiche : bouton primaire "Voir mes résultats" (liant vers `/results`) et bouton outline "Refaire le test" (liant vers `/test`)
+
+#### Scenario: Hero — utilisateur non connecté
+- **WHEN** un utilisateur sans session charge la page d'accueil
+- **THEN** la Hero Section affiche : bouton primaire "Tester mon profil" (liant vers `/test`), lien "Déjà un compte ? Se connecter" (liant vers `/auth/login`), et le compteur social "Déjà plus de 2 000 étudiants africains accompagnés"
+
+### Requirement: Inscription prioritaire sur connexion pour les non-connectés
+Les éléments de navigation de la landing page SHALL présenter l'inscription ("S'inscrire") comme action primaire et la connexion ("Se connecter") comme action secondaire pour les utilisateurs non connectés.
+
+#### Scenario: Hiérarchie visuelle inscription > connexion
+- **WHEN** un utilisateur non connecté charge la page d'accueil
+- **THEN** le bouton "S'inscrire" est rendu avec le style orange primaire et "Se connecter" est rendu en style texte secondaire
 
 ### Requirement: Section "Comment ça marche"
 La page SHALL présenter le fonctionnement en 3 étapes numérotées : (1) Réponds à 10 questions, (2) KRAAK analyse ton profil, (3) Accède à tes opportunités personnalisées.
@@ -72,3 +94,7 @@ La page SHALL être un Server Component pur sans JavaScript client non nécessai
 #### Scenario: Rendu serveur uniquement
 - **WHEN** la page est construite avec `next build`
 - **THEN** aucun composant `'use client'` n'est présent dans la landing page ou ses sections
+
+#### Scenario: Rendu serveur des composants auth-aware
+- **WHEN** la page est construite avec `next build`
+- **THEN** Navbar et HeroSection sont des Server Components asynchrones utilisant `createSupabaseServerAnonClient()` pour lire la session, sans directive `'use client'`

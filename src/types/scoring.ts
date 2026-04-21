@@ -30,12 +30,18 @@ export interface Opportunity {
   funding_type: string
   deadline: string | null
   budget_required: number | null
+  short_description?: string | null
+  source_url?: string | null
+  eligibility_summary?: string | null
 }
+
+export type RecommendationBadge = "top" | "probability" | null
 
 export interface Recommendation {
   opportunity: Opportunity
   match_score: number
   justification: string
+  badge: RecommendationBadge
 }
 
 export interface MatchInput {

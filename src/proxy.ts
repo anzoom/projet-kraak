@@ -4,10 +4,10 @@ import { type NextRequest, NextResponse } from "next/server"
 import { isRateLimited } from "@/lib/upstash"
 
 // Routes protégées par JWT Supabase
-const PROTECTED_ROUTES = ["/dashboard", "/results", "/payment"]
+const PROTECTED_ROUTES = ["/dashboard"]
 
 // Routes soumises au rate limiting
-const RATE_LIMITED_ROUTES = ["/auth/", "/api/payment/"]
+const RATE_LIMITED_ROUTES = ["/auth/"]
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl

@@ -30,6 +30,7 @@ export const Opportunities: CollectionConfig = {
       options: [
         { label: "Bourse", value: "bourse" },
         { label: "Formation", value: "formation" },
+        { label: "Échange", value: "echange" },
         { label: "Programme", value: "programme" },
         { label: "Stage", value: "stage" },
         { label: "Emploi", value: "emploi" },
@@ -61,7 +62,7 @@ export const Opportunities: CollectionConfig = {
       label: "Type de financement",
       options: [
         { label: "Complète", value: "complete" },
-        { label: "Partielle", value: "partielle" },
+        { label: "Partielle", value: "partial" },
         { label: "Non financée", value: "non_financee" },
         { label: "Salariée", value: "salariee" },
       ],

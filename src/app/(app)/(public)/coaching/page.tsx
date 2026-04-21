@@ -1,0 +1,114 @@
+import type { Metadata } from "next"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "Coaching — KRAAK",
+  description: "Maximise tes chances d'acceptation avec un accompagnement personnalisé.",
+}
+
+const OFFERS = [
+  {
+    id: "audit",
+    emoji: "📋",
+    title: "Audit de dossier",
+    description: "Un expert analyse ton dossier et te donne un plan d'action concret pour maximiser tes chances sur tes opportunités cibles.",
+    features: [
+      "Analyse complète de ton CV et lettre de motivation",
+      "Identification des points forts et points faibles",
+      "Plan d'action prioritaire et personnalisé",
+      "Retour sous 48h",
+    ],
+    cta: "Demander un audit",
+    highlight: false,
+  },
+  {
+    id: "accompagnement",
+    emoji: "🎯",
+    title: "Accompagnement complet",
+    description: "Un coach dédié t'accompagne de A à Z sur ta candidature : de la stratégie à la soumission finale.",
+    features: [
+      "Stratégie de candidature personnalisée",
+      "Rédaction et optimisation des documents",
+      "Préparation aux entretiens",
+      "Suivi jusqu'à la décision finale",
+    ],
+    cta: "Être accompagné",
+    highlight: true,
+  },
+]
+
+export default function CoachingPage() {
+  return (
+    <div className="min-h-screen bg-slate-light">
+      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center">
+        <Link
+          href="/results"
+          className="inline-flex items-center gap-2 text-sm text-slate-mid hover:text-slate-dark transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Retour aux résultats
+        </Link>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 py-12">
+        <div className="text-center mb-10">
+          <p className="text-4xl mb-4">🔥</p>
+          <h1 className="text-3xl font-black text-slate-dark tracking-tight mb-3">
+            Maximise tes chances d'acceptation
+          </h1>
+          <p className="text-slate-mid text-base leading-relaxed max-w-md mx-auto">
+            Nos coachs t'aident à transformer tes opportunités en admissions. Choisis la formule adaptée à ton projet.
+          </p>
+        </div>
+
+        <div className="space-y-4 mb-10">
+          {OFFERS.map((offer) => (
+            <div
+              key={offer.id}
+              id={offer.id === "accompagnement" ? "accompagnement" : undefined}
+              className={[
+                "bg-white rounded-2xl border-2 p-6",
+                offer.highlight ? "border-primary" : "border-gray-100",
+              ].join(" ")}
+            >
+              {offer.highlight && (
+                <span className="inline-flex items-center h-6 px-3 rounded-full bg-primary text-white text-xs font-bold mb-4">
+                  Le plus populaire
+                </span>
+              )}
+              <p className="text-2xl mb-2">{offer.emoji}</p>
+              <h2 className="text-xl font-black text-slate-dark mb-2">{offer.title}</h2>
+              <p className="text-slate-mid text-sm mb-4 leading-relaxed">{offer.description}</p>
+              <ul className="space-y-2 mb-6">
+                {offer.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-slate-dark">
+                    <span className="text-primary mt-0.5">✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                className={[
+                  "w-full h-12 rounded-full font-bold text-sm transition-colors",
+                  offer.highlight
+                    ? "bg-primary text-white hover:bg-primary-dark shadow-md shadow-orange-100"
+                    : "border-2 border-primary text-primary hover:bg-primary hover:text-white",
+                ].join(" ")}
+              >
+                {offer.cta} →
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-xs text-slate-mid">
+          Tu as des questions ?{" "}
+          <a href="mailto:coaching@kraak.co" className="underline hover:text-slate-dark transition-colors">
+            Contacte-nous
+          </a>
+        </p>
+      </main>
+    </div>
+  )
+}

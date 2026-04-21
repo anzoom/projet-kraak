@@ -6,18 +6,22 @@ import { ArrowLeft, ArrowRight } from "lucide-react"
 import { useTestStore } from "@/store/testStore"
 import { questions } from "@/data/questions"
 import ProgressBar from "./ProgressBar"
-import QuestionCard from "./QuestionCard"
+import CountrySelectCard from "./CountrySelectCard"
+import SelectCard from "./SelectCard"
 
 const TOTAL = questions.length
+const STORAGE_KEY_RESULT = "kraak_scoring_result"
 
 export default function TestStepper() {
   const router = useRouter()
-  const { answers, currentStep, setAnswer, nextStep, prevStep } = useTestStore()
+  const { answers, currentStep, setAnswer, nextStep, prevStep, reset } = useTestStore()
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
+    reset()
+    localStorage.removeItem(STORAGE_KEY_RESULT)
     setHydrated(true)
-  }, [])
+  }, [reset])
 
   if (!hydrated) {
     return (
@@ -38,10 +42,10 @@ export default function TestStepper() {
     setAnswer(question.id, value)
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (!canAdvance) return
     if (isLast) {
-      router.push("/auth/register?from=test")
+      router.push("/results")
       return
     }
     nextStep()
@@ -56,11 +60,11 @@ export default function TestStepper() {
       <ProgressBar current={currentStep + 1} total={TOTAL} />
 
       <div className="mt-8 mb-8">
-        <QuestionCard
-          question={question}
-          selectedValue={selectedValue}
-          onSelect={handleSelect}
-        />
+        {question.id === "target_country" ? (
+          <CountrySelectCard selectedValue={selectedValue} onSelect={handleSelect} />
+        ) : (
+          <SelectCard question={question} selectedValue={selectedValue} onSelect={handleSelect} />
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-4">
