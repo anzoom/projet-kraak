@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight } from "lucide-react"
+import posthog from "posthog-js"
 import { useTestStore } from "@/store/testStore"
 import { questions } from "@/data/questions"
 import ProgressBar from "./ProgressBar"
@@ -21,6 +22,7 @@ export default function TestStepper() {
     reset()
     localStorage.removeItem(STORAGE_KEY_RESULT)
     setHydrated(true)
+    posthog.capture("test_started")
   }, [reset])
 
   if (!hydrated) {
@@ -45,6 +47,7 @@ export default function TestStepper() {
   async function handleNext() {
     if (!canAdvance) return
     if (isLast) {
+      posthog.capture("test_completed", { answers_count: Object.keys(answers).length })
       router.push("/results")
       return
     }

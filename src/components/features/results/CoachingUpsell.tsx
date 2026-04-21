@@ -1,4 +1,7 @@
+"use client"
+
 import Link from "next/link"
+import posthog from "posthog-js"
 import type { Recommendation } from "@/types/scoring"
 
 interface Props {
@@ -30,12 +33,14 @@ export default function CoachingUpsell({ recommendations }: Props) {
       <div className="flex flex-col sm:flex-row gap-3">
         <Link
           href="/coaching"
+          onClick={() => posthog.capture("coaching_cta_clicked", { cta_label: "Optimiser mon dossier" })}
           className="inline-flex items-center justify-center h-12 px-6 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-colors shadow-md shadow-orange-900/30 flex-1"
         >
           Optimiser mon dossier →
         </Link>
         <Link
           href="/coaching#accompagnement"
+          onClick={() => posthog.capture("coaching_cta_clicked", { cta_label: "Être accompagné" })}
           className="inline-flex items-center justify-center h-12 px-6 rounded-full border-2 border-white/30 text-white font-semibold text-sm hover:bg-white/10 transition-colors flex-1"
         >
           Être accompagné

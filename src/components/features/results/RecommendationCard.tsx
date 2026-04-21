@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { ArrowRight } from "lucide-react"
+import posthog from "posthog-js"
 import type { Recommendation } from "@/types/scoring"
 import OpportunityDetailModal from "./OpportunityDetailModal"
 import SaveButton from "./SaveButton"
@@ -104,6 +105,11 @@ export default function RecommendationCard({ recommendation, rank }: Props) {
               href={opportunity.source_url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => posthog.capture("opportunity_source_clicked", {
+                opportunity_id: opportunity.id,
+                opportunity_title: opportunity.title,
+                source_url: opportunity.source_url,
+              })}
               className="w-full h-11 rounded-full bg-primary text-white font-semibold text-sm hover:bg-primary-dark transition-colors inline-flex items-center justify-center gap-2"
             >
               Postuler
@@ -111,7 +117,14 @@ export default function RecommendationCard({ recommendation, rank }: Props) {
             </a>
           )}
           <button
-            onClick={() => setShowDetail(true)}
+            onClick={() => {
+              posthog.capture("opportunity_clicked", {
+                opportunity_id: opportunity.id,
+                opportunity_title: opportunity.title,
+                badge: badge ?? null,
+              })
+              setShowDetail(true)
+            }}
             className="w-full h-11 rounded-full border-2 border-primary text-primary font-semibold text-sm hover:bg-primary hover:text-white transition-colors"
           >
             Voir les détails

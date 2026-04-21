@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bookmark } from "lucide-react"
 import Link from "next/link"
+import posthog from "posthog-js"
 import type { ScoringOutput, Opportunity, Recommendation } from "@/types/scoring"
 import { matchOpportunities } from "@/domain/matching/matcher"
 import { useSavedOpportunities } from "@/hooks/useSavedOpportunities"
@@ -111,6 +112,12 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
             })
           } catch {}
         }
+
+        posthog.capture("results_viewed", {
+          recommendations_count: recommendations.length,
+          segment: score.segment,
+          global_score: score.global_score,
+        })
 
         setState({ status: "ready", score, recommendations })
       } catch {
