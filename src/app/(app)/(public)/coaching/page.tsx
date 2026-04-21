@@ -142,6 +142,20 @@ export default function CoachingPage() {
               >
                 {offer.cta} →
               </button>
+              <div className="flex items-center gap-3 mt-3">
+                <div className="flex-1 h-px bg-gray-100" />
+                <span className="text-xs text-slate-mid">ou</span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+              <a
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_AFTER_BOOKING)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => posthog.capture("coaching_whatsapp_clicked", { offer: offer.id })}
+                className="w-full h-11 rounded-full border-2 border-gray-200 text-slate-mid font-semibold text-sm hover:border-green-400 hover:text-green-700 transition-colors inline-flex items-center justify-center gap-2 mt-1"
+              >
+                Pas de Zoom ? WhatsApp →
+              </a>
             </div>
           ))}
         </div>
