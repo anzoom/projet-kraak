@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import posthog from "posthog-js"
 
 const CALENDLY_URL = "https://calendly.com/anzoomc/30min"
+const WHATSAPP_NUMBER = "33768251709"
+const WHATSAPP_AFTER_BOOKING = `Bonjour, je viens de réserver un créneau coaching sur KRAAK mais je n'ai pas Zoom. Peut-on organiser l'appel via WhatsApp ?`
 
 const OFFERS = [
   {
@@ -47,6 +49,8 @@ declare global {
 }
 
 export default function CoachingPage() {
+  const [booked, setBooked] = useState(false)
+
   useEffect(() => {
     const script = document.createElement("script")
     script.src = "https://assets.calendly.com/assets/external/widget.js"
@@ -58,9 +62,18 @@ export default function CoachingPage() {
     link.href = "https://assets.calendly.com/assets/external/widget.css"
     document.head.appendChild(link)
 
+    function handleMessage(e: MessageEvent) {
+      if (e.data?.event === "calendly.event_scheduled") {
+        setBooked(true)
+        posthog.capture("coaching_booked")
+      }
+    }
+    window.addEventListener("message", handleMessage)
+
     return () => {
       document.head.removeChild(script)
       document.head.removeChild(link)
+      window.removeEventListener("message", handleMessage)
     }
   }, [])
 
@@ -132,6 +145,28 @@ export default function CoachingPage() {
             </div>
           ))}
         </div>
+
+        {booked && (
+          <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 text-center mb-6">
+            <p className="text-2xl mb-2">✅</p>
+            <p className="font-bold text-slate-dark mb-1">Créneau réservé !</p>
+            <p className="text-sm text-slate-mid mb-4">
+              Tu vas recevoir un email de confirmation. L'appel se fait par défaut sur Zoom.
+            </p>
+            <p className="text-sm font-semibold text-slate-dark mb-3">
+              Tu n'as pas Zoom ?
+            </p>
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_AFTER_BOOKING)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => posthog.capture("coaching_whatsapp_after_booking")}
+              className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-green-600 text-white font-semibold text-sm hover:bg-green-700 transition-colors"
+            >
+              Organiser via WhatsApp →
+            </a>
+          </div>
+        )}
 
         <p className="text-center text-xs text-slate-mid">
           Tu as des questions ?{" "}
