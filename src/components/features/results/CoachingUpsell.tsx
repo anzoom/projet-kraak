@@ -32,7 +32,7 @@ export default function CoachingUpsell({ recommendations }: Props) {
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Link
-          href="/coaching"
+          href="/coaching#audit"
           onClick={() => posthog.capture("coaching_cta_clicked", { cta_label: "Optimiser mon dossier" })}
           className="inline-flex items-center justify-center h-12 px-6 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-colors shadow-md shadow-orange-900/30 flex-1"
         >
