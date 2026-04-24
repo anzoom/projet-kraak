@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight } from "lucide-react"
 import posthog from "posthog-js"
 import type { Recommendation } from "@/types/scoring"
 import OpportunityDetailModal from "./OpportunityDetailModal"
@@ -100,22 +99,6 @@ export default function RecommendationCard({ recommendation, rank }: Props) {
         </p>
 
         <div className="flex flex-col gap-2">
-          {opportunity.source_url && (
-            <a
-              href={opportunity.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => posthog.capture("opportunity_source_clicked", {
-                opportunity_id: opportunity.id,
-                opportunity_title: opportunity.title,
-                source_url: opportunity.source_url,
-              })}
-              className="w-full h-11 rounded-full bg-primary text-white font-semibold text-sm hover:bg-primary-dark transition-colors inline-flex items-center justify-center gap-2"
-            >
-              Postuler
-              <ArrowRight className="w-4 h-4" />
-            </a>
-          )}
           <button
             onClick={() => {
               posthog.capture("opportunity_clicked", {
@@ -125,7 +108,7 @@ export default function RecommendationCard({ recommendation, rank }: Props) {
               })
               setShowDetail(true)
             }}
-            className="w-full h-11 rounded-full border-2 border-primary text-primary font-semibold text-sm hover:bg-primary hover:text-white transition-colors"
+            className="w-full h-11 rounded-full bg-primary text-white font-semibold text-sm hover:bg-primary-dark transition-colors"
           >
             Voir les détails
           </button>
