@@ -16,6 +16,16 @@ export function useSavedOpportunities() {
     } catch {
       // ignore malformed data
     }
+
+    function sync() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY)
+        setSavedIds(raw ? (JSON.parse(raw) as string[]) : [])
+      } catch {}
+    }
+
+    window.addEventListener("kraak_favorites_changed", sync)
+    return () => window.removeEventListener("kraak_favorites_changed", sync)
   }, [])
 
   const toggle = useCallback((id: string) => {
@@ -23,6 +33,7 @@ export function useSavedOpportunities() {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        window.dispatchEvent(new Event("kraak_favorites_changed"))
       } catch {
         // ignore storage errors
       }
