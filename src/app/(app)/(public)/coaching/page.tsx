@@ -58,7 +58,7 @@ const OFFERS = [
     emoji: "🎯",
     title: "Accompagnement complet",
     price: "50 000 FCFA",
-    description: "Un coach dédié t'accompagne de A à Z sur ta candidature : de la stratégie à la soumission finale.",
+    description: "Un conseiller dédié t'accompagne de A à Z sur ta candidature : de la stratégie à la soumission finale.",
     features: [
       "Stratégie de candidature personnalisée",
       "Rédaction et optimisation des documents",
@@ -96,7 +96,7 @@ function BookingCalendar({ offerId, offerTitle }: { offerId: string; offerTitle:
 
   function buildWhatsAppMessage(day: Date, slot: string): string {
     const dayLabel = `${DAY_NAMES_LONG[day.getDay()]} ${day.getDate()} ${MONTH_NAMES_LONG[day.getMonth()]}`
-    return `Bonjour, je souhaite réserver un call coaching KRAAK (${offerTitle}) le ${dayLabel} à ${slot}. Est-ce que ce créneau est disponible ?`
+    return `Bonjour, je souhaite réserver un appel avec un conseiller KRAAK (${offerTitle}) le ${dayLabel} à ${slot}. Est-ce que ce créneau est disponible ?`
   }
 
   async function handleBook() {
@@ -134,7 +134,7 @@ function BookingCalendar({ offerId, offerTitle }: { offerId: string; offerTitle:
         <p className="text-2xl mb-2">✅</p>
         <p className="font-bold text-slate-dark mb-1">Créneau réservé !</p>
         <p className="text-sm text-slate-mid">
-          Un message WhatsApp a été envoyé. Le coach te contactera pour confirmer.
+          Un message WhatsApp a été envoyé. Le conseiller te contactera pour confirmer.
         </p>
       </div>
     )
@@ -235,7 +235,7 @@ function BookingCalendar({ offerId, offerTitle }: { offerId: string; offerTitle:
             {booking ? "Réservation…" : "Confirmer sur WhatsApp →"}
           </button>
           <p className="text-xs text-slate-mid text-center">
-            Le paiement s'effectuera lors de la confirmation avec le coach.
+            Le paiement s'effectuera lors de la confirmation avec le conseiller.
           </p>
         </div>
       )}
