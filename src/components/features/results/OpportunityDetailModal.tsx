@@ -258,7 +258,7 @@ export default function OpportunityDetailModal({ opportunity, onClose }: Props) 
               className="flex items-center justify-center gap-2 flex-1 h-12 rounded-full border-2 border-primary text-primary font-semibold text-sm hover:bg-primary-light transition-colors"
             >
               <CalendarDays className="w-4 h-4" />
-              Conseiller
+              Me faire accompagner
             </a>
             <button
               onClick={handleShare}
