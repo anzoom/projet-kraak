@@ -38,7 +38,7 @@ type State =
 export default function ResultsClient({ opportunities, needsScoring = false, isAuthenticated = false }: Props) {
   const [state, setState] = useState<State>({ status: "loading" })
   const [showFavorites, setShowFavorites] = useState(false)
-  const { isSaved, count: savedCount } = useSavedOpportunities()
+  const { isSaved } = useSavedOpportunities()
   const router = useRouter()
 
   useEffect(() => {
@@ -160,6 +160,8 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
   const capped = recommendations.slice(0, MAX_RESULTS)
   const free = isAuthenticated ? capped : []
   const locked = isAuthenticated ? [] : capped
+
+  const savedCount = free.filter((rec) => isSaved(rec.opportunity.id)).length
 
   const displayedFree = showFavorites
     ? free.filter((rec) => isSaved(rec.opportunity.id))
