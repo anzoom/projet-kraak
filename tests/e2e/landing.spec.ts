@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test"
 test.describe("Landing page", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/")
+    await page.waitForLoadState("networkidle")
   })
 
   test("affiche la promesse principale sans scroll", async ({ page }) => {
@@ -14,15 +15,15 @@ test.describe("Landing page", () => {
   test("CTA principal visible sans scroll sur mobile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto("/")
-    // Hero CTA — texte exact pour éviter l'ambiguïté avec la section CtaSection
-    const cta = page.getByRole("link", { name: "Tester mon profil", exact: true })
+    // Premier lien CTA de la page (hero) — .first() car CtaSection affiche le même texte
+    const cta = page.getByRole("link", { name: /voir mes résultats/i }).first()
     await expect(cta).toBeVisible()
     const box = await cta.boundingBox()
     expect(box?.y).toBeLessThan(844)
   })
 
-  test("CTA hero 'Tester mon profil' redirige vers /test", async ({ page }) => {
-    await page.getByRole("link", { name: "Tester mon profil", exact: true }).click()
+  test("CTA hero redirige vers /test", async ({ page }) => {
+    await page.getByRole("link", { name: /voir mes résultats/i }).first().click()
     await expect(page).toHaveURL("/test")
   })
 

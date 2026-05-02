@@ -1,37 +1,56 @@
 "use client"
 
-import { create } from "zustand"
-import { persist, createJSONStorage } from "zustand/middleware"
+import { useState, useEffect, useCallback } from "react"
 
-interface SavedState {
-  savedIds: string[]
-  toggle: (id: string) => void
+const MAX_SAVED = 15
+
+interface UseSavedOptions {
+  isPremium: boolean
+  isAuthenticated: boolean
 }
 
-const useSavedStore = create<SavedState>()(
-  persist(
-    (set) => ({
-      savedIds: [],
-      toggle: (id) =>
-        set((state) => ({
-          savedIds: state.savedIds.includes(id)
-            ? state.savedIds.filter((x) => x !== id)
-            : [...state.savedIds, id],
-        })),
-    }),
-    {
-      name: "kraak_saved_opportunities",
-      storage: createJSONStorage(() => localStorage),
+export function useSavedOpportunities({ isPremium, isAuthenticated }: UseSavedOptions) {
+  const [savedIds, setSavedIds] = useState<string[]>([])
+  const [limitReached, setLimitReached] = useState(false)
+
+  const enabled = isPremium && isAuthenticated
+
+  useEffect(() => {
+    if (!enabled) { setSavedIds([]); return }
+    fetch("/api/user/saved")
+      .then((r) => r.json())
+      .then((data: { savedIds?: string[] }) => setSavedIds(data.savedIds ?? []))
+      .catch(() => {})
+  }, [enabled])
+
+  const toggle = useCallback(async (opportunityId: string) => {
+    if (!enabled) return
+    setLimitReached(false)
+
+    try {
+      const res = await fetch("/api/user/saved", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opportunityId }),
+      })
+      const data = (await res.json()) as { savedIds?: string[]; limitReached?: boolean; error?: string }
+
+      if (data.limitReached) { setLimitReached(true); return }
+      if (data.savedIds) { setSavedIds(data.savedIds); return }
+      if (data.error) console.error("[useSavedOpportunities] API error:", data.error)
+    } catch (err) {
+      console.error("[useSavedOpportunities] fetch error:", err)
     }
-  )
-)
+  }, [enabled])
 
-export function useSavedOpportunities() {
-  const { savedIds, toggle } = useSavedStore()
+  function isSaved(id: string) { return savedIds.includes(id) }
 
-  function isSaved(id: string): boolean {
-    return savedIds.includes(id)
+  return {
+    savedIds,
+    toggle,
+    isSaved,
+    count: savedIds.length,
+    limitReached,
+    maxSaved: MAX_SAVED,
   }
-
-  return { savedIds, toggle, isSaved, count: savedIds.length }
 }

@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { createSupabaseServerAnonClient } from "@/lib/supabase/server"
 import { fetchOpportunities } from "@/lib/opportunities"
 import ResultsClient from "@/components/features/results/ResultsClient"
@@ -8,6 +7,11 @@ export const metadata: Metadata = {
   title: "Tes résultats — KRAAK",
   description: "Découvre les opportunités les plus adaptées à ton profil.",
 }
+
+// Classic : 10 oppos quota, 5 affichées à la fois
+// Premium : 20 oppos quota, 10 affichées à la fois — saves cap = 15 (anti-scraping)
+const MAX_RESULTS_CLASSIC = 10
+const MAX_RESULTS_PREMIUM = 20
 
 export default async function ResultsPage({
   searchParams,
@@ -23,27 +27,18 @@ export default async function ResultsPage({
   const { data: { user } } = await supabase.auth.getUser()
   const needsScoring = params.needs_scoring === "true"
 
-  return (
-    <div className="min-h-screen flex flex-col bg-slate-light">
-      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
-        <Link href="/" className="text-xl font-black text-slate-dark tracking-tight">
-          KRAAK
-        </Link>
-        {user && (
-          <a
-            href="/auth/logout"
-            className="text-sm text-slate-mid hover:text-slate-dark transition-colors"
-          >
-            Déconnexion
-          </a>
-        )}
-      </header>
+  // Phase 2 : remplacer isPremiumUser par une vérification du rôle Supabase
+  const isPremiumUser = false
+  const maxResults = isPremiumUser ? MAX_RESULTS_PREMIUM : MAX_RESULTS_CLASSIC
 
+  return (
+    <div className="flex flex-col bg-slate-light">
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <ResultsClient
           opportunities={opportunities}
           needsScoring={needsScoring}
           isAuthenticated={!!user}
+          maxResults={maxResults}
         />
       </main>
     </div>
