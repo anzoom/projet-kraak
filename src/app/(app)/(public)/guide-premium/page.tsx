@@ -17,7 +17,7 @@ const UPCOMING = [
   {
     icon: "🎯",
     title: "Jusqu'à 20 recommandations",
-    desc: "2× plus de recommandations personnalisées selon ton profil et tes objectifs.",
+    desc: "4× plus de recommandations personnalisées selon ton profil et tes objectifs.",
     highlight: false,
   },
   {
@@ -118,7 +118,7 @@ export default function GuidePremiumPage() {
             </div>
             <div className="border-t border-white/20 pt-3 space-y-2">
               {[
-                { label: "Recommandations", sub: "×2" },
+                { label: "Recommandations", sub: "×4" },
                 { label: "15 favoris max", sub: null },
                 { label: "9 modules formation", sub: null },
                 { label: "Alertes deadlines", sub: null },

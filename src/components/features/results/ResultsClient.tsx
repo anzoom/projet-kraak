@@ -315,7 +315,7 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
                 <span className="text-xl shrink-0">🚀</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-slate-dark mb-1">
-                    Passe en Premium — vois 2× plus
+                    Passe en Premium — vois 4× plus
                   </p>
                   <p className="text-xs text-slate-mid leading-relaxed mb-3">
                     Compte Classic : <strong>jusqu'à 5 recommandations</strong>. Guide Premium : <strong>jusqu'à 20 recommandations</strong> + 15 favoris sauvegardables.

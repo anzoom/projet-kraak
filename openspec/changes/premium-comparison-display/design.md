@@ -15,11 +15,10 @@ Section de comparaison insérée entre le hero et la liste UPCOMING :
 │    GRATUIT      │    PREMIUM      │
 │    Classic      │    Guide        │
 │                 │                 │
-│       10        │       20        │
+│       5         │       20        │
 │ recommandations │ recommandations │
-│ 5 affichées     │ 10 affichées    │
 ├─────────────────┼─────────────────┤
-│ ✓ Recommandations │ ✓ Recommandations ×2 │
+│ ✓ Recommandations │ ✓ Recommandations ×4 │
 │ ✗ Favoris       │ ✓ 15 favoris max│
 │ ✗ Guide         │ ✓ 9 modules     │
 │ ✗ Alertes       │ ✓ Alertes       │
@@ -36,7 +35,7 @@ Structure :
 ```
 ┌─────────────────────────────────────┐
 │ 🚀 Passe en Premium                 │
-│ Tu vois 10 oppos. Premium en donne  │
+│ Tu vois 5 oppos. Premium en donne   │
 │ 20 — plus 15 favoris sauvegardables │
 │                                     │
 │  [Découvrir le Guide Premium →]     │
@@ -54,7 +53,7 @@ Ajout d'une ligne de métriques sous la description de la carte Guide Premium :
 │ 📚 Guide Premium             │
 │ 9 modules … 20 recommandations│
 │                              │
-│  10 → 20   ·   +15 favoris  │ ← ligne métriques ajoutée
+│  5 → 20    ·   +15 favoris  │ ← ligne métriques ajoutée
 └──────────────────────────────┘
 ```
 
