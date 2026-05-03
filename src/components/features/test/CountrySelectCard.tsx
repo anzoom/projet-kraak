@@ -15,7 +15,7 @@ export default function CountrySelectCard({ selectedValue, onSelect }: Props) {
         Dans quel pays ou quelle zone veux-tu évoluer ?
       </h2>
       <p className="text-sm text-slate-mid mb-6">
-        Choisis un pays pour un matching précis, ou une zone si tu es ouvert(e) à plusieurs destinations.
+        Choisis un pays pour une correspondance précise, ou une zone si tu es ouvert(e) à plusieurs destinations.
       </p>
 
       <div className="relative">

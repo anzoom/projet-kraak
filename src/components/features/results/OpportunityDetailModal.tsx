@@ -207,7 +207,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, isExpired
                   ? "bg-gray-100 text-gray-400 line-through"
                   : "bg-orange-50 text-orange-600",
               ].join(" ")}>
-                {isExpired ? "Éd. " : "Deadline : "}{formatDeadline(opportunity.deadline)}
+                {isExpired ? "Éd. " : "Date limite : "}{formatDeadline(opportunity.deadline)}
               </span>
             )}
             {opportunity.budget_required !== null && opportunity.budget_required > 0 && (

@@ -60,7 +60,7 @@ export default function LoginForm() {
       <p className="text-slate-mid text-sm mb-8">
         {fromTest
           ? "Tu as terminé le test ! Connecte-toi pour accéder à tes résultats."
-          : "Accède à tes résultats et recommandations"}
+          : "Accède à tes résultats et recommandations."}
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

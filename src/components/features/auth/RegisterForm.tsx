@@ -13,7 +13,7 @@ export default function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromTest = searchParams.get("from") === "test"
-  const nextPath = searchParams.get("next") ?? (fromTest ? "/results" : "/")
+  const nextPath = searchParams.get("next") ?? (fromTest ? "/results" : "/test?welcome=1")
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -29,9 +29,7 @@ export default function RegisterForm() {
     setLoading(true)
 
     const supabase = createSupabaseBrowserClient()
-    const emailRedirectTo = nextPath !== "/"
-      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
-      : `${window.location.origin}/auth/callback`
+    const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
@@ -60,6 +58,7 @@ export default function RegisterForm() {
     if (fromTest) {
       await triggerScoring()
     }
+    void fetch("/api/user/welcome", { method: "POST" })
     router.push(nextPath)
   }
 
@@ -88,9 +87,7 @@ export default function RegisterForm() {
   async function handleResend() {
     setResendLoading(true)
     const supabase = createSupabaseBrowserClient()
-    const emailRedirectTo = nextPath !== "/"
-      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
-      : `${window.location.origin}/auth/callback`
+    const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
     await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo } })
     setResendSent(true)
     setResendLoading(false)
@@ -133,7 +130,7 @@ export default function RegisterForm() {
         Crée ton compte
       </h1>
       <p className="text-slate-mid text-sm mb-8">
-        Pour accéder à tes résultats personnalisés
+        Pour accéder à tes résultats personnalisés.
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

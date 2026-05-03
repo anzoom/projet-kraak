@@ -106,7 +106,7 @@ export default function RecommendationCard({ recommendation, rank, saved, onTogg
               "inline-flex items-center h-6 px-2.5 rounded-full text-xs",
               isExpired ? "bg-gray-100 text-gray-400 line-through" : "bg-gray-100 text-slate-mid",
             ].join(" ")}>
-              {isExpired ? "Éd. " : "Deadline : "}{formatDeadline(opportunity.deadline)}
+              {isExpired ? "Éd. " : "Date limite : "}{formatDeadline(opportunity.deadline)}
             </span>
           )}
         </div>

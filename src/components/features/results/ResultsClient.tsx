@@ -7,7 +7,7 @@ import Link from "next/link"
 import posthog from "posthog-js"
 import type { ScoringOutput, Opportunity, Recommendation } from "@/types/scoring"
 import { matchOpportunities, countZoneFallbacks } from "@/domain/matching/matcher"
-import { SPECIFIC_COUNTRIES, ZONE_LABELS, getZoneForCountry } from "@/lib/countries"
+import { SPECIFIC_COUNTRIES, ZONE_LABELS, ZONE_ARTICLES, getZoneForCountry, withA, toute } from "@/lib/countries"
 import { useSavedOpportunities } from "@/hooks/useSavedOpportunities"
 import ScoreCard from "./ScoreCard"
 import RecommendationCard from "./RecommendationCard"
@@ -207,8 +207,12 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
   // Message informatif quand des opportunités zone-wide complètent le matching d'un pays précis
   const targetCountry = answers.target_country ?? ""
   const zoneFallbackCount = countZoneFallbacks(recommendations, targetCountry)
-  const targetCountryLabel = SPECIFIC_COUNTRIES[targetCountry]?.label ?? ""
-  const targetZoneLabel = ZONE_LABELS[getZoneForCountry(targetCountry) ?? ""] ?? ""
+  const targetCountryMeta = SPECIFIC_COUNTRIES[targetCountry]
+  const targetCountryLabel = targetCountryMeta?.label ?? ""
+  const targetZone = getZoneForCountry(targetCountry) ?? ""
+  const targetZoneLabel = ZONE_LABELS[targetZone] ?? ""
+  const zoneArticle = ZONE_ARTICLES[targetZone] ?? "l'"
+  const countryArticle = targetCountryMeta?.article ?? "la"
 
   // Les recommandations sont déjà limitées au quota dans la logique de load()
   const capped = recommendations
@@ -344,8 +348,8 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
               <span className="text-base shrink-0 mt-0.5">ℹ️</span>
               <p className="text-xs text-blue-800 leading-relaxed">
                 {zoneFallbackCount === 1
-                  ? `1 opportunité est ouverte à toute la ${targetZoneLabel}, pas uniquement à la ${targetCountryLabel}.`
-                  : `${zoneFallbackCount} opportunités sont ouvertes à toute la ${targetZoneLabel}, pas uniquement à la ${targetCountryLabel}.`}{" "}
+                  ? `1 opportunité est ouverte ${toute(zoneArticle, targetZoneLabel)}, pas uniquement ${withA(countryArticle, targetCountryLabel)}.`
+                  : `${zoneFallbackCount} opportunités sont ouvertes ${toute(zoneArticle, targetZoneLabel)}, pas uniquement ${withA(countryArticle, targetCountryLabel)}.`}{" "}
                 Elles restent accessibles depuis {targetCountryLabel} — on les inclut pour compléter tes résultats.
               </p>
             </div>
