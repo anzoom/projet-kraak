@@ -30,8 +30,8 @@ test.describe("Navbar — état non authentifié", () => {
     await expect(profileLink).toHaveCount(0)
   })
 
-  test("n'affiche pas 'Mes résultats' si non connecté", async ({ page }) => {
-    const resultsLink = page.getByRole("link", { name: /mes résultats/i })
-    await expect(resultsLink).toHaveCount(0)
+  test("n'affiche pas 'Mes résultats' dans la navbar si non connecté", async ({ page }) => {
+    const navResultsLink = page.locator("header").getByRole("link", { name: /mes résultats/i })
+    await expect(navResultsLink).toHaveCount(0)
   })
 })

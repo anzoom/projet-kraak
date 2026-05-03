@@ -6,21 +6,23 @@ test.describe("Authentification — Connexion", () => {
   })
 
   test("affiche le formulaire de connexion", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /connexion/i })).toBeVisible()
-    await expect(page.getByLabel(/email/i)).toBeVisible()
-    await expect(page.getByLabel(/mot de passe/i)).toBeVisible()
-    await expect(page.getByRole("button", { name: /se connecter/i })).toBeVisible()
+    const form = page.locator("form")
+    await expect(page.getByRole("heading", { name: /connexion/i }).first()).toBeVisible()
+    await expect(form.getByLabel(/email/i)).toBeVisible()
+    await expect(form.getByLabel(/mot de passe/i)).toBeVisible()
+    await expect(form.getByRole("button", { name: /se connecter/i })).toBeVisible()
   })
 
   test("affiche une erreur sur identifiants incorrects", async ({ page }) => {
-    await page.getByLabel(/email/i).fill("invalide@test.com")
-    await page.getByLabel(/mot de passe/i).fill("wrongpassword123")
-    await page.getByRole("button", { name: /se connecter/i }).click()
+    const form = page.locator("form")
+    await form.getByLabel(/email/i).fill("invalide@test.com")
+    await form.getByLabel(/mot de passe/i).fill("wrongpassword123")
+    await form.getByRole("button", { name: /se connecter/i }).click()
     await expect(page.getByText(/incorrect|invalide|email ou mot de passe/i)).toBeVisible({ timeout: 8000 })
   })
 
   test("lien vers inscription visible", async ({ page }) => {
-    await expect(page.getByRole("link", { name: /créer un compte|inscription|s'inscrire/i })).toBeVisible()
+    await expect(page.getByRole("link", { name: /créer un compte/i })).toBeVisible()
   })
 
   test("lien mot de passe oublié visible", async ({ page }) => {
