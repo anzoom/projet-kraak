@@ -32,9 +32,16 @@ function normalize(s: string): string {
 
 // ── Filtres durs ────────────────────────────────────────────────────────────
 
+// Level order: bac < bac2 < bac3 < bac5 < doctorat
+// oppLevel = niveau minimum requis ; l'utilisateur doit être >= ce niveau
+const LEVEL_RANK: Record<string, number> = { bac: 0, bac2: 1, licence: 2, bac3: 2, master: 3, bac5: 3, doctorat: 4 }
+
 function isStudyLevelCompatible(oppLevel: string, userLevel: string): boolean {
   if (oppLevel === "tous") return true
-  return oppLevel === userLevel
+  const oppRank = LEVEL_RANK[oppLevel]
+  const userRank = LEVEL_RANK[userLevel]
+  if (oppRank === undefined || userRank === undefined) return oppLevel === userLevel
+  return userRank >= oppRank
 }
 
 function isDeadlinePassed(deadline: string): boolean {

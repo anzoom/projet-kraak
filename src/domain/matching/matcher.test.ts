@@ -60,8 +60,19 @@ describe("Filtre — is_active", () => {
 })
 
 describe("Filtre — deadline expirée", () => {
-  it("exclut les opportunités avec deadline passée", () => {
-    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ deadline: "2020-01-01" })] }))).toHaveLength(0)
+  it("exclut les opportunités avec deadline passée si horizon court", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: "2020-01-01" })],
+      answers: { ...baseAnswers, timeline: "urgent" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("inclut les opportunités avec deadline passée si horizon long (prochaine édition)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ deadline: "2020-01-01" })],
+      answers: { ...baseAnswers, timeline: "long" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
   })
   it("inclut les opportunités avec deadline future", () => {
     const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
@@ -82,6 +93,42 @@ describe("Filtre — study_level / dernier diplôme", () => {
   it("exclut si study_level incompatible avec academic_level", () => {
     const input = makeInput({
       opportunities: [makeOpp({ study_level: "doctorat" })],
+      answers: { ...baseAnswers, academic_level: "bac" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  // Hiérarchie : oppLevel = niveau minimum requis, user doit être >= ce niveau
+  it("inclut si academic_level > study_level requis (master voit opp bac3)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ study_level: "bac3" })],
+      answers: { ...baseAnswers, academic_level: "master" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("inclut si academic_level = study_level requis (bac3 voit opp bac3)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ study_level: "bac3" })],
+      answers: { ...baseAnswers, academic_level: "bac3" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("exclut si academic_level < study_level requis (bac ne voit pas opp bac5)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ study_level: "bac5" })],
+      answers: { ...baseAnswers, academic_level: "bac" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("licence voit opp bac2 (supérieur au requis)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ study_level: "bac2" })],
+      answers: { ...baseAnswers, academic_level: "licence" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("bac ne voit pas opp master", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ study_level: "master" })],
       answers: { ...baseAnswers, academic_level: "bac" },
     })
     expect(matchOpportunities(input)).toHaveLength(0)
