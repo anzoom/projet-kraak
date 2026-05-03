@@ -157,6 +157,24 @@ function scoreOpportunity(
   return { score, reasons }
 }
 
+// ── Rang de précision géographique (pour le tri en deux niveaux) ─────────────
+// Garantit que les oppos exactement dans le pays cible précèdent toujours les
+// oppos de zone, elles-mêmes avant les oppos internationales — indépendamment
+// des bonus secondaires (financement complet, deadline proche, etc.).
+
+function getCountryRank(oppCountry: string, targetCountry: string): number {
+  if (!targetCountry || targetCountry === "peu_importe") return 0
+  const opp = normalize(oppCountry)
+  const target = normalize(targetCountry)
+  if (opp === target) return 3
+  if (opp === "international") return 1
+  const targetZone = getZoneForCountry(target)
+  const oppZone = getZoneForCountry(opp)
+  if (oppZone && oppZone === target) return 3   // pays dans la zone → exact pour une recherche zone
+  if (targetZone && opp === targetZone) return 2 // zone couvre le pays cible → fallback
+  return 0
+}
+
 // ── Point d'entrée ──────────────────────────────────────────────────────────
 
 export function matchOpportunities(input: MatchInput): Recommendation[] {
@@ -164,6 +182,7 @@ export function matchOpportunities(input: MatchInput): Recommendation[] {
 
   const budgetMax = SCORING_RULES.budget_max_xof[answers.budget ?? ""] ?? 0
   const timeline = answers.timeline ?? "long"
+  const targetCountry = answers.target_country ?? ""
 
   // Horizons pour lesquels les éditions passées sont pertinentes (≥ 6 mois)
   const EXPIRED_ELIGIBLE_TIMELINES = new Set(["moyen", "long"])
@@ -192,7 +211,7 @@ export function matchOpportunities(input: MatchInput): Recommendation[] {
     if (answers.domain && answers.domain !== "autre" && oppDomain !== "multidisciplinaire" && oppDomain !== normalize(answers.domain)) continue
 
     // Filtre 6 — pays / région cible (hiérarchique)
-    if (!isCountryCompatible(opp.country, answers.target_country ?? "")) continue
+    if (!isCountryCompatible(opp.country, targetCountry)) continue
 
     // Filtre 7 — budget : exclure si le budget requis dépasse le budget déclaré
     if (opp.budget_required !== null && opp.budget_required > budgetMax) continue
@@ -216,8 +235,17 @@ export function matchOpportunities(input: MatchInput): Recommendation[] {
     else active.push(rec)
   }
 
-  const sortedActive = active.sort((a, b) => b.match_score - a.match_score)
-  const sortedExpired = expired.sort((a, b) => b.match_score - a.match_score)
+  // Tri en deux niveaux : précision pays d'abord, score ensuite
+  const sortedActive = active.sort((a, b) => {
+    const rankDiff = getCountryRank(b.opportunity.country, targetCountry)
+                   - getCountryRank(a.opportunity.country, targetCountry)
+    return rankDiff !== 0 ? rankDiff : b.match_score - a.match_score
+  })
+  const sortedExpired = expired.sort((a, b) => {
+    const rankDiff = getCountryRank(b.opportunity.country, targetCountry)
+                   - getCountryRank(a.opportunity.country, targetCountry)
+    return rankDiff !== 0 ? rankDiff : b.match_score - a.match_score
+  })
 
   const strongProfile =
     ["avance", "pret"].includes(answers.dossier_maturity ?? "") &&

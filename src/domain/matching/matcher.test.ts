@@ -453,6 +453,73 @@ describe("Scoring — bonus", () => {
   })
 })
 
+describe("Tri — précision pays prioritaire sur le score brut", () => {
+  it("un exact match de score inférieur prime sur une zone de score supérieur", () => {
+    // Cas réel : opp zone Europe avec financement complet (score 80)
+    // vs opp France exact sans financement complet (score 75)
+    // → France doit être #1 car l'utilisateur a explicitement choisi France
+    const input = makeInput({
+      opportunities: [
+        makeOpp({ id: "zone-complete", country: "europe",  funding_type: "complete", budget_required: 0 }),
+        makeOpp({ id: "exact-partial", country: "france",  funding_type: "partial" }),
+      ],
+      answers: { ...baseAnswers, target_country: "france", budget: "zero" },
+    })
+    const result = matchOpportunities(input)
+    expect(result[0].opportunity.id).toBe("exact-partial")   // France exact #1
+    expect(result[1].opportunity.id).toBe("zone-complete")   // Europe zone #2
+  })
+  it("un exact match sans aucun bonus prime sur zone+deadline+financement complet", () => {
+    const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const input = makeInput({
+      opportunities: [
+        makeOpp({ id: "zone-max",   country: "europe",   funding_type: "complete", deadline: soon, budget_required: 0 }),
+        makeOpp({ id: "exact-base", country: "belgique", funding_type: "partial",  deadline: null }),
+      ],
+      answers: { ...baseAnswers, target_country: "belgique", budget: "zero" },
+    })
+    const result = matchOpportunities(input)
+    expect(result[0].opportunity.id).toBe("exact-base")  // Belgique exact #1
+    expect(result[1].opportunity.id).toBe("zone-max")    // Europe zone #2
+  })
+  it("international reste toujours en dernier même avec tous les bonus", () => {
+    const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const input = makeInput({
+      opportunities: [
+        makeOpp({ id: "intl-max",   country: "international", funding_type: "complete", deadline: soon, budget_required: 0 }),
+        makeOpp({ id: "exact-base", country: "france",        funding_type: "partial" }),
+      ],
+      answers: { ...baseAnswers, target_country: "france", budget: "zero" },
+    })
+    const result = matchOpportunities(input)
+    expect(result[0].opportunity.id).toBe("exact-base")  // France exact #1
+    expect(result[1].opportunity.id).toBe("intl-max")    // International #2
+  })
+  it("à rang de pays égal, le score brut décide (meilleur financement en tête)", () => {
+    const input = makeInput({
+      opportunities: [
+        makeOpp({ id: "fr-partial",  country: "france", funding_type: "partial" }),
+        makeOpp({ id: "fr-complete", country: "france", funding_type: "complete", budget_required: 0 }),
+      ],
+      answers: { ...baseAnswers, target_country: "france", budget: "zero" },
+    })
+    const result = matchOpportunities(input)
+    expect(result[0].opportunity.id).toBe("fr-complete")  // score supérieur (75+15=90)
+    expect(result[1].opportunity.id).toBe("fr-partial")   // score inférieur (75)
+  })
+  it("peu_importe : classement par score brut uniquement (pas de rang pays)", () => {
+    const input = makeInput({
+      opportunities: [
+        makeOpp({ id: "any-partial",  funding_type: "partial" }),
+        makeOpp({ id: "any-complete", funding_type: "complete", budget_required: 0 }),
+      ],
+      answers: { ...baseAnswers, target_country: "peu_importe", budget: "zero" },
+    })
+    const result = matchOpportunities(input)
+    expect(result[0].opportunity.id).toBe("any-complete")  // score 90 > 55
+  })
+})
+
 describe("Scoring — tri décroissant", () => {
   it("trie par match_score décroissant", () => {
     const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
