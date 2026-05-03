@@ -7,6 +7,7 @@ const MATCH_BONUS = {
   domain: 25,
   country: 20,
   country_zone_fallback: 10, // zone-wide opp when user wants a specific country
+  country_international: 5,  // international opp — always passes but least precise
   complete_funding: 15,
   deadline_soon: 10,
 } as const
@@ -110,10 +111,14 @@ function scoreOpportunity(
     const oppNorm = normalize(opp.country)
     const targetNorm = normalize(targetCountry)
 
-    if (oppNorm === "international" || oppNorm === targetNorm) {
-      // Correspondance exacte ou opportunité mondiale
+    if (oppNorm === targetNorm) {
+      // Correspondance exacte pays/zone
       score += MATCH_BONUS.country
       reasons.push("pays cible correspond")
+    } else if (oppNorm === "international") {
+      // Opportunité mondiale — passe le filtre mais moins précise qu'un pays exact
+      score += MATCH_BONUS.country_international
+      reasons.push("ouvert à l'international")
     } else {
       const targetZone = getZoneForCountry(targetNorm)
       const oppZone = getZoneForCountry(oppNorm)
