@@ -18,9 +18,52 @@ export const Opportunities: CollectionConfig = {
     },
     {
       name: "country",
-      type: "text",
+      type: "select",
       required: true,
-      label: "Pays",
+      label: "Pays / Zone géographique",
+      options: [
+        // International
+        { label: "International / Mondial", value: "international" },
+        // Europe — pays spécifiques
+        { label: "France",       value: "france" },
+        { label: "Belgique",     value: "belgique" },
+        { label: "Suisse",       value: "suisse" },
+        { label: "Allemagne",    value: "allemagne" },
+        { label: "Royaume-Uni",  value: "royaume_uni" },
+        { label: "Espagne",      value: "espagne" },
+        { label: "Portugal",     value: "portugal" },
+        { label: "Pays-Bas",     value: "pays_bas" },
+        { label: "Italie",       value: "italie" },
+        { label: "Danemark",     value: "danemark" },
+        { label: "Suède",        value: "suede" },
+        { label: "Europe (toute zone)", value: "europe" },
+        // Amérique du Nord
+        { label: "Canada",       value: "canada" },
+        { label: "États-Unis",   value: "etats_unis" },
+        { label: "Amérique du Nord (toute zone)", value: "amerique_nord" },
+        { label: "Amérique du Sud", value: "amerique_sud" },
+        // Afrique — pays spécifiques
+        { label: "Maroc",        value: "maroc" },
+        { label: "Sénégal",      value: "senegal" },
+        { label: "Côte d'Ivoire",value: "cote_ivoire" },
+        { label: "Cameroun",     value: "cameroun" },
+        { label: "Tunisie",      value: "tunisie" },
+        { label: "Afrique (toute zone)", value: "afrique" },
+        // Asie
+        { label: "Chine",        value: "chine" },
+        { label: "Asie (toute zone)", value: "asie" },
+        // Autres zones
+        { label: "Moyen-Orient", value: "moyen_orient" },
+        { label: "Océanie",      value: "oceanie" },
+      ],
+    },
+    {
+      name: "location",
+      type: "text",
+      label: "Pays / Lieu (optionnel)",
+      admin: {
+        description: "Ex : France, USA / Canada, Cameroun — laisse vide si international ou non précisé.",
+      },
     },
     {
       name: "category",
@@ -29,11 +72,11 @@ export const Opportunities: CollectionConfig = {
       label: "Catégorie",
       options: [
         { label: "Bourse", value: "bourse" },
-        { label: "Formation", value: "formation" },
-        { label: "Échange", value: "echange" },
         { label: "Programme", value: "programme" },
-        { label: "Stage", value: "stage" },
-        { label: "Emploi", value: "emploi" },
+        { label: "Fellowship", value: "fellowship" },
+        { label: "Concours", value: "concours" },
+        { label: "Prix", value: "prix" },
+        { label: "Autre", value: "autre" },
       ],
     },
     {

@@ -15,7 +15,7 @@ const baseAnswers = {
   current_level: "licence_3",
   main_objective: "bourse",
   domain: "sciences_tech",
-  target_country: "france",
+  target_country: "europe",
   budget: "moyen",
   academic_level: "licence",
   dossier_maturity: "en_cours",
@@ -31,7 +31,7 @@ function makeOpp(overrides: Partial<Opportunity> = {}): Opportunity {
     study_level: "tous",
     category: "bourse",
     domain: "sciences_tech",
-    country: "france",
+    country: "europe",
     funding_type: "partial",
     deadline: null,
     budget_required: null,
@@ -95,15 +95,15 @@ describe("Filtre — objectif principal (catégorie)", () => {
     expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ category: "bourse" })] }))).toHaveLength(1)
   })
   it("exclut si category !== main_objective", () => {
-    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ category: "emploi" })] }))).toHaveLength(0)
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ category: "fellowship" })] }))).toHaveLength(0)
   })
-  it("exclut les stages pour un utilisateur cherchant une bourse", () => {
-    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ category: "stage" })] }))).toHaveLength(0)
+  it("exclut un programme pour un utilisateur cherchant une bourse", () => {
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ category: "programme" })] }))).toHaveLength(0)
   })
-  it("exclut les formations pour un utilisateur cherchant un échange", () => {
+  it("exclut une bourse pour un utilisateur cherchant un fellowship", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ category: "formation" })],
-      answers: { ...baseAnswers, main_objective: "echange" },
+      opportunities: [makeOpp({ category: "bourse" })],
+      answers: { ...baseAnswers, main_objective: "fellowship" },
     })
     expect(matchOpportunities(input)).toHaveLength(0)
   })
@@ -143,16 +143,16 @@ describe("Filtre — domaine", () => {
 
 // ── Filtre — pays cible ──────────────────────────────────────────────────────
 
-describe("Filtre — pays / région cible", () => {
+describe("Filtre — zone géographique cible", () => {
   it("inclut si country === target_country", () => {
-    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ country: "france" })] }))).toHaveLength(1)
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ country: "europe" })] }))).toHaveLength(1)
   })
   it("exclut si country !== target_country", () => {
-    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ country: "canada" })] }))).toHaveLength(0)
+    expect(matchOpportunities(makeInput({ opportunities: [makeOpp({ country: "amerique_nord" })] }))).toHaveLength(0)
   })
   it("peu_importe — inclut toutes les opportunités", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ country: "usa" }), makeOpp({ id: "2", country: "canada" })],
+      opportunities: [makeOpp({ country: "amerique_nord" }), makeOpp({ id: "2", country: "afrique" })],
       answers: { ...baseAnswers, target_country: "peu_importe" },
     })
     expect(matchOpportunities(input)).toHaveLength(2)
@@ -161,7 +161,7 @@ describe("Filtre — pays / région cible", () => {
     const input = makeInput({
       opportunities: [
         makeOpp({ id: "af", country: "afrique" }),
-        makeOpp({ id: "fr", country: "france" }),
+        makeOpp({ id: "eu", country: "europe" }),
       ],
       answers: { ...baseAnswers, target_country: "afrique" },
     })
@@ -169,10 +169,78 @@ describe("Filtre — pays / région cible", () => {
     expect(result).toHaveLength(1)
     expect(result[0].opportunity.id).toBe("af")
   })
-  it("europe — correspondance exacte", () => {
+  it("amerique_nord — correspondance exacte", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ country: "amerique_nord" })],
+      answers: { ...baseAnswers, target_country: "amerique_nord" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+})
+
+// ── Filtre — matching hiérarchique pays/zone ─────────────────────────────────
+
+describe("Filtre — matching hiérarchique (pays précis ↔ zone)", () => {
+  it("target=france inclut opp country=france (exact)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ country: "france" })],
+      answers: { ...baseAnswers, target_country: "france" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("target=france inclut opp country=europe (zone fallback)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ country: "europe" })],
+      answers: { ...baseAnswers, target_country: "france" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("target=france exclut opp country=amerique_nord (hors zone)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ country: "amerique_nord" })],
+      answers: { ...baseAnswers, target_country: "france" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("target=europe inclut opp country=france (pays dans la zone)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ country: "france" })],
       answers: { ...baseAnswers, target_country: "europe" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("target=canada inclut opp country=amerique_nord (zone fallback)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ country: "amerique_nord" })],
+      answers: { ...baseAnswers, target_country: "canada" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("target=canada exclut opp country=europe (hors zone)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ country: "europe" })],
+      answers: { ...baseAnswers, target_country: "canada" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("target=france — exact match score > zone fallback score", () => {
+    const input = makeInput({
+      opportunities: [
+        makeOpp({ id: "exact", country: "france" }),
+        makeOpp({ id: "zone",  country: "europe" }),
+      ],
+      answers: { ...baseAnswers, target_country: "france" },
+    })
+    const result = matchOpportunities(input)
+    expect(result).toHaveLength(2)
+    const exactScore = result.find((r) => r.opportunity.id === "exact")!.match_score
+    const zoneScore  = result.find((r) => r.opportunity.id === "zone")!.match_score
+    expect(exactScore).toBeGreaterThan(zoneScore)
+  })
+  it("international passe toujours, même pour un pays précis", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ country: "international" })],
+      answers: { ...baseAnswers, target_country: "france" },
     })
     expect(matchOpportunities(input)).toHaveLength(1)
   })
@@ -196,9 +264,9 @@ describe("Filtre — budget", () => {
     expect(matchOpportunities(input)).toHaveLength(1)
   })
   it("exclut si budget_required dépasse le budget max utilisateur", () => {
-    // budget "petit" → max 100_000 FCFA ; oppo requiert 200_000
+    // budget "petit" → max 500_000 FCFA ; oppo requiert 600_000
     const input = makeInput({
-      opportunities: [makeOpp({ budget_required: 200_000 })],
+      opportunities: [makeOpp({ budget_required: 600_000 })],
       answers: { ...baseAnswers, budget: "petit" },
     })
     expect(matchOpportunities(input)).toHaveLength(0)

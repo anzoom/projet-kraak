@@ -1,10 +1,12 @@
 import type { MatchInput, Recommendation, RecommendationBadge, Opportunity } from "@/types/scoring"
 import { SCORING_RULES } from "@/domain/scoring/rules"
+import { getZoneForCountry, isSpecificCountry } from "@/lib/countries"
 
 const MATCH_BONUS = {
   category: 30,
   domain: 25,
   country: 20,
+  country_zone_fallback: 10, // zone-wide opp when user wants a specific country
   complete_funding: 15,
   deadline_soon: 10,
 } as const
@@ -22,7 +24,7 @@ const TIMELINE_MAX_DAYS: Record<string, number> = {
 function normalize(s: string): string {
   return s
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .trim()
 }
@@ -48,13 +50,27 @@ function isTimelineCompatible(deadline: string | null, timeline: string): boolea
   return daysUntil <= maxDays
 }
 
-/** Filtre pays :
- *  - `peu_importe` → aucun filtre
- *  - `afrique` → l'opportunité doit être localisée en Afrique (`country = "afrique"`)
- *  - valeur spécifique → correspondance exacte */
+/**
+ * Filtre zone/pays géographique — hiérarchique :
+ *  - `peu_importe` → tout passe
+ *  - opportunité `international` → passe toujours
+ *  - correspondance exacte (ex: france === france, europe === europe)
+ *  - utilisateur choisit un pays précis (ex: france) → les oppos de la zone entière (europe) passent aussi
+ *  - utilisateur choisit une zone (ex: europe) → les oppos d'un pays de cette zone (france) passent aussi
+ */
 function isCountryCompatible(oppCountry: string, targetCountry: string): boolean {
   if (!targetCountry || targetCountry === "peu_importe") return true
-  return normalize(oppCountry) === normalize(targetCountry)
+  const opp = normalize(oppCountry)
+  const target = normalize(targetCountry)
+  if (opp === "international") return true
+  if (opp === target) return true
+  // Oppo couvre toute une zone, l'utilisateur veut un pays précis dans cette zone
+  const targetZone = getZoneForCountry(target)
+  if (targetZone && opp === targetZone) return true
+  // Oppo est dans un pays précis, l'utilisateur veut n'importe quel pays de cette zone
+  const oppZone = getZoneForCountry(opp)
+  if (oppZone && oppZone === target) return true
+  return false
 }
 
 // ── Scoring (ranking des résultats filtrés) ─────────────────────────────────
@@ -83,7 +99,7 @@ function scoreOpportunity(
     reasons.push("domaine correspond à ta filière")
   }
 
-  // Pays — toujours vrai après filtre dur (+20 garanti sauf peu_importe sans complet)
+  // Pays/Zone — scoring différencié selon la précision du match
   const targetCountry = answers.target_country ?? ""
   if (targetCountry === "peu_importe") {
     if (opp.funding_type === "complete") {
@@ -91,8 +107,27 @@ function scoreOpportunity(
       reasons.push("financement complet (pays flexible)")
     }
   } else {
-    score += MATCH_BONUS.country
-    reasons.push("pays cible correspond")
+    const oppNorm = normalize(opp.country)
+    const targetNorm = normalize(targetCountry)
+
+    if (oppNorm === "international" || oppNorm === targetNorm) {
+      // Correspondance exacte ou opportunité mondiale
+      score += MATCH_BONUS.country
+      reasons.push("pays cible correspond")
+    } else {
+      const targetZone = getZoneForCountry(targetNorm)
+      const oppZone = getZoneForCountry(oppNorm)
+
+      if (oppZone && oppZone === targetNorm) {
+        // Oppo dans un pays précis, utilisateur veut toute la zone → match fort
+        score += MATCH_BONUS.country
+        reasons.push("pays dans la zone cible")
+      } else if (targetZone && oppNorm === targetZone) {
+        // Oppo couvre toute la zone, utilisateur veut un pays précis → match partiel
+        score += MATCH_BONUS.country_zone_fallback
+        reasons.push("zone compatible")
+      }
+    }
   }
 
   // Financement complet sans apport
@@ -118,14 +153,21 @@ export function matchOpportunities(input: MatchInput): Recommendation[] {
   const budgetMax = SCORING_RULES.budget_max_xof[answers.budget ?? ""] ?? 0
   const timeline = answers.timeline ?? "long"
 
-  const recommendations: Recommendation[] = []
+  // Horizons pour lesquels les éditions passées sont pertinentes (≥ 6 mois)
+  const EXPIRED_ELIGIBLE_TIMELINES = new Set(["moyen", "long"])
+  const showExpired = EXPIRED_ELIGIBLE_TIMELINES.has(timeline)
+
+  const active: Recommendation[] = []
+  const expired: Recommendation[] = []
 
   for (const opp of opportunities) {
     // Filtre 1 — opportunité active
     if (!opp.is_active) continue
 
-    // Filtre 2 — deadline non expirée
-    if (opp.deadline && isDeadlinePassed(opp.deadline)) continue
+    const isExpired = !!(opp.deadline && isDeadlinePassed(opp.deadline))
+
+    // Filtre 2 — deadline expirée : exclure si l'horizon est trop court
+    if (isExpired && !showExpired) continue
 
     // Filtre 3 — niveau d'étude compatible avec le dernier diplôme
     if (!isStudyLevelCompatible(opp.study_level, answers.academic_level ?? "")) continue
@@ -133,40 +175,61 @@ export function matchOpportunities(input: MatchInput): Recommendation[] {
     // Filtre 4 — catégorie = objectif principal
     if (normalize(opp.category) !== normalize(answers.main_objective ?? "")) continue
 
-    // Filtre 5 — domaine (si renseigné)
-    if (answers.domain && normalize(opp.domain) !== normalize(answers.domain)) continue
+    // Filtre 5 — domaine (si renseigné) ; multidisciplinaire et "autre" passent toujours
+    const oppDomain = normalize(opp.domain)
+    if (answers.domain && answers.domain !== "autre" && oppDomain !== "multidisciplinaire" && oppDomain !== normalize(answers.domain)) continue
 
-    // Filtre 6 — pays / région cible
+    // Filtre 6 — pays / région cible (hiérarchique)
     if (!isCountryCompatible(opp.country, answers.target_country ?? "")) continue
 
     // Filtre 7 — budget : exclure si le budget requis dépasse le budget déclaré
     if (opp.budget_required !== null && opp.budget_required > budgetMax) continue
 
-    // Filtre 8 — horizon de départ compatible avec la deadline
-    if (!isTimelineCompatible(opp.deadline, timeline)) continue
+    // Filtre 8 — horizon de départ compatible avec la deadline (actives seulement)
+    if (!isExpired && !isTimelineCompatible(opp.deadline, timeline)) continue
 
     const { score, reasons } = scoreOpportunity(opp, answers)
 
-    recommendations.push({
+    const rec: Recommendation = {
       opportunity: opp,
       match_score: score,
       justification: reasons.length > 0
         ? reasons.slice(0, 3).join(", ")
         : "aucun critère de correspondance fort",
       badge: null,
-    })
+      isExpired,
+    }
+
+    if (isExpired) expired.push(rec)
+    else active.push(rec)
   }
 
-  const sorted = recommendations.sort((a, b) => b.match_score - a.match_score)
+  const sortedActive = active.sort((a, b) => b.match_score - a.match_score)
+  const sortedExpired = expired.sort((a, b) => b.match_score - a.match_score)
 
   const strongProfile =
     ["avance", "pret"].includes(answers.dossier_maturity ?? "") &&
     ["licence", "master", "doctorat"].includes(answers.academic_level ?? "")
 
-  return sorted.map((rec, i) => {
+  const withBadges = sortedActive.map((rec, i) => {
     let badge: RecommendationBadge = null
     if (i < 2) badge = "top"
     else if (strongProfile && i < 4) badge = "probability"
     return { ...rec, badge }
   })
+
+  return [...withBadges, ...sortedExpired]
+}
+
+/** Retourne le nombre de recommandations matchées via zone et non via pays exact.
+ *  Utilisé dans ResultsClient pour afficher un message informatif. */
+export function countZoneFallbacks(
+  recommendations: Recommendation[],
+  targetCountry: string,
+): number {
+  if (!isSpecificCountry(targetCountry)) return 0
+  return recommendations.filter((r) => {
+    const c = normalize(r.opportunity.country)
+    return c !== normalize(targetCountry) && c !== "international"
+  }).length
 }

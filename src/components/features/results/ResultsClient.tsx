@@ -6,7 +6,8 @@ import { Bookmark, Lock } from "lucide-react"
 import Link from "next/link"
 import posthog from "posthog-js"
 import type { ScoringOutput, Opportunity, Recommendation } from "@/types/scoring"
-import { matchOpportunities } from "@/domain/matching/matcher"
+import { matchOpportunities, countZoneFallbacks } from "@/domain/matching/matcher"
+import { SPECIFIC_COUNTRIES, ZONE_LABELS, getZoneForCountry } from "@/lib/countries"
 import { useSavedOpportunities } from "@/hooks/useSavedOpportunities"
 import ScoreCard from "./ScoreCard"
 import RecommendationCard from "./RecommendationCard"
@@ -37,7 +38,7 @@ interface Props {
 type State =
   | { status: "loading" }
   | { status: "no_data" }
-  | { status: "ready"; score: ScoringOutput; recommendations: Recommendation[]; quotaExhausted: boolean }
+  | { status: "ready"; score: ScoringOutput; answers: Record<string, string>; recommendations: Recommendation[]; quotaExhausted: boolean }
 
 export default function ResultsClient({ opportunities, needsScoring = false, isAuthenticated = false, maxResults = MAX_FREE }: Props) {
   const [state, setState] = useState<State>({ status: "loading" })
@@ -165,7 +166,7 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
           quota_exhausted: quotaExhausted,
         })
 
-        setState({ status: "ready", score, recommendations: quotaRecs, quotaExhausted })
+        setState({ status: "ready", score, answers, recommendations: quotaRecs, quotaExhausted })
       } catch {
         setState({ status: "no_data" })
       }
@@ -201,7 +202,13 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
     )
   }
 
-  const { score, recommendations, quotaExhausted } = state
+  const { score, answers, recommendations, quotaExhausted } = state
+
+  // Message informatif quand des opportunités zone-wide complètent le matching d'un pays précis
+  const targetCountry = answers.target_country ?? ""
+  const zoneFallbackCount = countZoneFallbacks(recommendations, targetCountry)
+  const targetCountryLabel = SPECIFIC_COUNTRIES[targetCountry]?.label ?? ""
+  const targetZoneLabel = ZONE_LABELS[getZoneForCountry(targetCountry) ?? ""] ?? ""
 
   // Les recommandations sont déjà limitées au quota dans la logique de load()
   const capped = recommendations
@@ -330,6 +337,19 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
               </div>
             )}
           </div>
+
+          {/* Bandeau zone-fallback — opportunités zone-wide incluses pour compléter le pays précis */}
+          {zoneFallbackCount > 0 && !showFavorites && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+              <span className="text-base shrink-0 mt-0.5">ℹ️</span>
+              <p className="text-xs text-blue-800 leading-relaxed">
+                {zoneFallbackCount === 1
+                  ? `1 opportunité est ouverte à toute la ${targetZoneLabel}, pas uniquement à la ${targetCountryLabel}.`
+                  : `${zoneFallbackCount} opportunités sont ouvertes à toute la ${targetZoneLabel}, pas uniquement à la ${targetCountryLabel}.`}{" "}
+                Elles restent accessibles depuis {targetCountryLabel} — on les inclut pour compléter tes résultats.
+              </p>
+            </div>
+          )}
 
           {/* Alerte quota épuisé — modifications des critères bloquées */}
           {quotaExhausted && !showFavorites && (

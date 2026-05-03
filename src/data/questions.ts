@@ -33,10 +33,11 @@ export const questions: Question[] = [
     text: "Quel est ton objectif principal ?",
     options: [
       { value: "bourse", label: "Obtenir une bourse d'études" },
-      { value: "formation", label: "Intégrer une formation ou école" },
-      { value: "echange", label: "Faire un programme d'échange" },
-      { value: "stage", label: "Trouver un stage" },
-      { value: "emploi", label: "Trouver un emploi" },
+      { value: "programme", label: "Intégrer un programme (graduate, échange, accélérateur…)" },
+      { value: "fellowship", label: "Décrocher un fellowship ou résidence" },
+      { value: "concours", label: "Participer à un concours ou compétition" },
+      { value: "prix", label: "Remporter un prix ou une dotation" },
+      { value: "autre", label: "Autre type d'opportunité" },
     ],
   },
   {
@@ -49,11 +50,12 @@ export const questions: Question[] = [
       { value: "sante", label: "Santé & Médecine" },
       { value: "sciences_sociales", label: "Sciences sociales & Humanités" },
       { value: "lettres_arts", label: "Arts, Design & Communication" },
+      { value: "autre", label: "Autre domaine — je n'ai pas encore décidé" },
     ],
   },
   {
     id: "target_country",
-    text: "Dans quel pays ou région tu voudrais aller ?",
+    text: "Dans quel pays ou quelle zone veux-tu évoluer ?",
     options: [],
   },
   {

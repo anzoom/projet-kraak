@@ -1,21 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { ChevronDown } from "lucide-react"
-
-interface CountryOption {
-  value: string
-  label: string
-}
-
-const FALLBACK: CountryOption[] = [
-  { value: "afrique", label: "Afrique (hors mon pays)" },
-  { value: "canada", label: "Canada" },
-  { value: "europe", label: "Europe (Allemagne, Belgique, Pays-Bas…)" },
-  { value: "france", label: "France" },
-  { value: "usa", label: "États-Unis" },
-  { value: "peu_importe", label: "Peu importe, je suis ouvert(e)" },
-]
+import { COUNTRY_GROUPS } from "@/lib/countries"
 
 interface Props {
   selectedValue: string | undefined
@@ -23,22 +9,14 @@ interface Props {
 }
 
 export default function CountrySelectCard({ selectedValue, onSelect }: Props) {
-  const [options, setOptions] = useState<CountryOption[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch("/api/countries")
-      .then((r) => r.json())
-      .then((data: { countries: CountryOption[] }) => setOptions(data.countries))
-      .catch(() => setOptions(FALLBACK))
-      .finally(() => setLoading(false))
-  }, [])
-
   return (
     <div className="w-full">
-      <h2 className="text-xl sm:text-2xl font-bold text-slate-dark mb-6 leading-snug">
-        Dans quel pays ou région tu voudrais aller ?
+      <h2 className="text-xl sm:text-2xl font-bold text-slate-dark mb-2 leading-snug">
+        Dans quel pays ou quelle zone veux-tu évoluer ?
       </h2>
+      <p className="text-sm text-slate-mid mb-6">
+        Choisis un pays pour un matching précis, ou une zone si tu es ouvert(e) à plusieurs destinations.
+      </p>
 
       <div className="relative">
         <select
@@ -46,25 +24,38 @@ export default function CountrySelectCard({ selectedValue, onSelect }: Props) {
           onChange={(e) => {
             if (e.target.value) onSelect(e.target.value)
           }}
-          disabled={loading}
           className={[
             "w-full appearance-none h-[52px] px-5 pr-10 rounded-xl border-2 font-medium text-base transition-all",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-            loading
-              ? "border-gray-200 bg-gray-50 text-gray-400 cursor-wait"
-              : selectedValue
+            selectedValue
               ? "border-primary bg-primary-light text-primary"
               : "border-gray-200 bg-white text-slate-dark hover:border-primary/40",
           ].join(" ")}
         >
           <option value="" disabled>
-            {loading ? "Chargement…" : "Sélectionne un pays ou une région"}
+            Sélectionne un pays ou une zone
           </option>
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
+
+          {COUNTRY_GROUPS.map((group) => (
+            <optgroup key={group.zoneValue} label={`── ${group.zoneLabel}`}>
+              {group.countries.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+              <option value={group.zoneValue}>
+                {group.zoneLabel} — toute la zone
+              </option>
+            </optgroup>
           ))}
+
+          <optgroup label="── Autres zones">
+            <option value="amerique_sud">Amérique du Sud</option>
+            <option value="moyen_orient">Moyen-Orient</option>
+            <option value="oceanie">Océanie</option>
+          </optgroup>
+
+          <option value="peu_importe">Toutes destinations — je suis ouvert(e)</option>
         </select>
 
         <ChevronDown

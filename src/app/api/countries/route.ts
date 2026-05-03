@@ -1,29 +1,21 @@
 import { NextResponse } from "next/server"
-import { fetchOpportunities } from "@/lib/opportunities"
+import { COUNTRY_GROUPS } from "@/lib/countries"
 
-const COUNTRY_LABELS: Record<string, string> = {
-  afrique: "Afrique (hors mon pays)",
-  canada: "Canada",
-  europe: "Europe (Allemagne, Belgique, Pays-Bas…)",
-  france: "France",
-  usa: "États-Unis",
-}
-
+// Returns grouped country structure for the selector.
+// "international" is excluded: worldwide opportunities are included automatically
+// via the "peu_importe" option (see matcher.ts).
 export async function GET() {
-  const opportunities = await fetchOpportunities()
+  const groups = COUNTRY_GROUPS
 
-  const seen = new Set<string>()
-  const countries: { value: string; label: string }[] = []
+  // Extra zones with no specific countries listed yet
+  const otherZones = [
+    { value: "amerique_sud", label: "Amérique du Sud" },
+    { value: "moyen_orient", label: "Moyen-Orient" },
+    { value: "oceanie",      label: "Océanie" },
+  ]
 
-  for (const opp of opportunities) {
-    if (!seen.has(opp.country) && COUNTRY_LABELS[opp.country]) {
-      seen.add(opp.country)
-      countries.push({ value: opp.country, label: COUNTRY_LABELS[opp.country] })
-    }
-  }
-
-  countries.sort((a, b) => a.label.localeCompare(b.label, "fr"))
-  countries.push({ value: "peu_importe", label: "Peu importe, je suis ouvert(e)" })
-
-  return NextResponse.json({ countries }, { headers: { "Cache-Control": "public, max-age=300" } })
+  return NextResponse.json(
+    { groups, otherZones },
+    { headers: { "Cache-Control": "public, max-age=300" } },
+  )
 }
