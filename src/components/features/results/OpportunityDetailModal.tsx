@@ -1,15 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { X, ExternalLink, CheckCircle2, CalendarDays, Share2 } from "lucide-react"
+import { useEffect } from "react"
+import { X, ExternalLink, CheckCircle2, CalendarDays, BookOpen } from "lucide-react"
 import type { Opportunity } from "@/types/scoring"
+import { SPECIFIC_COUNTRIES, ZONE_LABELS, getZoneForCountry } from "@/lib/countries"
 
 const CATEGORY_LABELS: Record<string, string> = {
   bourse: "Bourse",
-  formation: "Formation",
-  echange: "Programme d'échange",
-  stage: "Stage",
-  emploi: "Emploi",
+  programme: "Programme",
+  fellowship: "Fellowship",
+  concours: "Concours",
+  prix: "Prix",
+  autre: "Autre",
 }
 
 const FUNDING_LABELS: Record<string, string> = {
@@ -19,7 +21,7 @@ const FUNDING_LABELS: Record<string, string> = {
   salariee: "Poste salarié",
 }
 
-function buildApplicationSteps(opp: Opportunity): string[] {
+function buildApplicationSteps(opp: Opportunity, isExpired: boolean): string[] {
   const { category: cat, country, funding_type, deadline, eligibility_summary } = opp
   const steps: string[] = []
 
@@ -52,25 +54,36 @@ function buildApplicationSteps(opp: Opportunity): string[] {
     steps.push("Prépare ton CV et ta lettre de motivation adaptée au profil et au secteur recherché.")
   }
 
-  // Étape 3 — plateforme de candidature (selon pays + catégorie)
-  if (country === "france" && (cat === "bourse" || cat === "formation")) {
-    steps.push("Crée ou mets à jour ton dossier sur Campus France (campusfrance.org) et soumets ta candidature.")
-  } else if (country === "canada") {
-    steps.push("Soumets ta candidature en ligne sur le portail officiel de l'établissement ou de l'organisme.")
-  } else if (country === "usa") {
-    steps.push("Soumets ta candidature via le portail dédié de l'établissement (Common App ou portail propre).")
-  } else if (country === "europe") {
+  // Résolution de la zone effective (fonctionne pour pays précis et zones)
+  const effectiveZone = getZoneForCountry(country) ?? country
+
+  // Étape 3 — plateforme de candidature (selon zone + catégorie)
+  if (effectiveZone === "europe") {
+    const isFrance = country === "france" || country === "europe"
     steps.push(
       cat === "echange"
-        ? "Dépose ton dossier via le bureau des relations internationales de ton université (portail Erasmus+)."
-        : "Soumets ta candidature directement sur le portail officiel de l'établissement européen cible."
+        ? "Dépose ton dossier via le bureau des relations internationales de ton université (portail Erasmus+ ou Campus France)."
+        : (cat === "bourse" || cat === "formation")
+          ? isFrance
+            ? "Crée ou mets à jour ton dossier sur Campus France (campusfrance.org) et postule directement sur le portail officiel de l'établissement cible."
+            : "Postule directement sur le portail officiel de l'établissement ou de l'organisme en Europe."
+          : "Soumets ta candidature directement sur le portail officiel de l'établissement ou de l'organisme en Europe."
+    )
+  } else if (effectiveZone === "amerique_nord") {
+    const isCanada = country === "canada"
+    steps.push(
+      isCanada
+        ? "Soumets ta candidature en ligne sur le portail officiel de l'établissement canadien et prépare ton dossier de visa étudiant (IRCC)."
+        : "Soumets ta candidature en ligne sur le portail officiel de l'établissement (Common App ou portail propre) et prépare ta demande de visa F-1/J-1."
     )
   } else {
     steps.push("Postule directement sur le site officiel de l'organisme en suivant les instructions de candidature.")
   }
 
   // Étape 4 — suivi et sélection (selon catégorie + deadline)
-  if (cat === "emploi" || cat === "stage") {
+  if (isExpired) {
+    steps.push("Surveille l'ouverture des candidatures pour la prochaine édition et prépare ton dossier en avance.")
+  } else if (cat === "emploi" || cat === "stage") {
     steps.push(
       cat === "stage"
         ? "Passe l'entretien de sélection et fais valider ta convention de stage par ton établissement."
@@ -84,15 +97,12 @@ function buildApplicationSteps(opp: Opportunity): string[] {
     steps.push("Suis l'avancement de ta candidature et réponds rapidement aux demandes de compléments de dossier.")
   }
 
-  // Étape 5 — démarches pratiques (visa, logement — selon pays)
-  if (country === "france") {
-    steps.push("Prépare ton visa étudiant ou de travail et effectue les démarches de logement en France (CROUS, Studapart…).")
-  } else if (country === "canada") {
-    steps.push("Fais ta demande de permis d'études ou de travail sur le portail IRCC Canada et prépare ton installation.")
-  } else if (country === "usa") {
-    steps.push("Prépare ton visa F-1, J-1 ou H-1B selon ta situation et effectue les formalités consulaires.")
-  } else if (country === "europe") {
-    steps.push("Prépare ton visa Schengen ou titre de séjour selon le pays d'accueil et organise ton hébergement.")
+  // Étape 5 — démarches pratiques (visa, logement — selon zone)
+  if (effectiveZone === "europe") {
+    const countryName = SPECIFIC_COUNTRIES[country]?.label ?? "le pays d'accueil"
+    steps.push(`Prépare ton visa Schengen ou long séjour pour ${countryName} et organise ton hébergement à l'avance.`)
+  } else if (effectiveZone === "amerique_nord") {
+    steps.push("Fais ta demande de permis d'études ou de travail (IRCC Canada ou visa F-1/J-1 USA) et effectue les formalités consulaires.")
   } else {
     steps.push("Prépare les documents administratifs nécessaires (visa si requis) et planifie ton installation sur place.")
   }
@@ -112,30 +122,10 @@ function formatBudget(amount: number): string {
 interface Props {
   opportunity: Opportunity
   onClose: () => void
+  isExpired?: boolean
 }
 
-export default function OpportunityDetailModal({ opportunity, onClose }: Props) {
-  const [copied, setCopied] = useState(false)
-
-  async function handleShare() {
-    const shareUrl = `${window.location.origin}/?opp=${opportunity.id}`
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: opportunity.title, url: shareUrl })
-      } catch {
-        // user cancelled
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(shareUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
-      } catch {
-        // clipboard unavailable
-      }
-    }
-  }
-
+export default function OpportunityDetailModal({ opportunity, onClose, isExpired = false }: Props) {
   useEffect(() => {
     document.body.style.overflow = "hidden"
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -146,7 +136,7 @@ export default function OpportunityDetailModal({ opportunity, onClose }: Props) 
     }
   }, [onClose])
 
-  const steps = buildApplicationSteps(opportunity)
+  const steps = buildApplicationSteps(opportunity, isExpired)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -171,7 +161,9 @@ export default function OpportunityDetailModal({ opportunity, onClose }: Props) 
               <span className="inline-flex items-center h-5 px-2 rounded-full bg-primary-light text-primary text-xs font-semibold">
                 {CATEGORY_LABELS[opportunity.category] ?? opportunity.category}
               </span>
-              <span className="text-xs text-slate-mid capitalize">{opportunity.country}</span>
+              <span className="text-xs text-slate-mid">
+                {SPECIFIC_COUNTRIES[opportunity.country]?.label ?? ZONE_LABELS[opportunity.country] ?? opportunity.country}
+              </span>
             </div>
             <h2 className="text-base font-black text-slate-dark leading-snug">
               {opportunity.title}
@@ -188,14 +180,34 @@ export default function OpportunityDetailModal({ opportunity, onClose }: Props) 
 
         {/* Scrollable content */}
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+          {/* Expired banner */}
+          {isExpired && (
+            <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+              <span className="text-base shrink-0">📅</span>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                <span className="font-semibold">Édition passée.</span> Les candidatures sont actuellement fermées. Suis ce programme pour être informé(e) de la prochaine session.
+              </p>
+            </div>
+          )}
+
           {/* Badges */}
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center h-6 px-3 rounded-full bg-gray-100 text-slate-mid text-xs font-medium">
               {FUNDING_LABELS[opportunity.funding_type] ?? opportunity.funding_type}
             </span>
+            {opportunity.location && (
+              <span className="inline-flex items-center gap-1 h-6 px-3 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                📍 {opportunity.location}
+              </span>
+            )}
             {opportunity.deadline && (
-              <span className="inline-flex items-center h-6 px-3 rounded-full bg-orange-50 text-orange-600 text-xs font-medium">
-                Deadline : {formatDeadline(opportunity.deadline)}
+              <span className={[
+                "inline-flex items-center h-6 px-3 rounded-full text-xs font-medium",
+                isExpired
+                  ? "bg-gray-100 text-gray-400 line-through"
+                  : "bg-orange-50 text-orange-600",
+              ].join(" ")}>
+                {isExpired ? "Éd. " : "Deadline : "}{formatDeadline(opportunity.deadline)}
               </span>
             )}
             {opportunity.budget_required !== null && opportunity.budget_required > 0 && (
@@ -246,9 +258,14 @@ export default function OpportunityDetailModal({ opportunity, onClose }: Props) 
               href={opportunity.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full h-12 rounded-full bg-primary text-white font-semibold text-sm hover:bg-primary-dark shadow-md shadow-orange-100 transition-colors"
+              className={[
+                "flex items-center justify-center gap-2 w-full h-12 rounded-full font-semibold text-sm transition-colors",
+                isExpired
+                  ? "bg-gray-200 text-slate-mid hover:bg-gray-300"
+                  : "bg-primary text-white hover:bg-primary-dark shadow-md shadow-orange-100",
+              ].join(" ")}
             >
-              Postuler sur le site officiel
+              {isExpired ? "Voir le programme officiel" : "Postuler sur le site officiel"}
               <ExternalLink className="w-4 h-4" />
             </a>
           )}
@@ -260,13 +277,13 @@ export default function OpportunityDetailModal({ opportunity, onClose }: Props) 
               <CalendarDays className="w-4 h-4" />
               Me faire accompagner
             </a>
-            <button
-              onClick={handleShare}
+            <a
+              href="/guide-premium"
               className="flex items-center justify-center gap-2 flex-1 h-12 rounded-full border-2 border-gray-200 text-slate-mid font-semibold text-sm hover:bg-gray-50 transition-colors"
             >
-              <Share2 className="w-4 h-4" />
-              {copied ? "✓ Lien copié !" : "Partager"}
-            </button>
+              <BookOpen className="w-4 h-4" />
+              Guide Premium
+            </a>
           </div>
         </div>
       </div>
