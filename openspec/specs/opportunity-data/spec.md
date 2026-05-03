@@ -1,17 +1,17 @@
 ### Requirement: Couverture complète des profils utilisateur
-Le seed SHALL contenir au minimum 10 opportunités éligibles pour chaque valeur de `academic_level` (bac, bac2, licence, master, doctorat), de sorte que le quota gratuit (MAX_FREE = 10) soit atteint pour tous les profils types.
+Le seed SHALL contenir au minimum 5 opportunités éligibles pour chaque valeur de `academic_level` (bac, bac2, licence, master, doctorat), de sorte que le quota gratuit (MAX_FREE = 5) soit atteint pour tous les profils types.
 
 #### Scenario: Profil bac — quota rempli
 - **WHEN** un utilisateur répond `academic_level: "bac"` au test
-- **THEN** le matching retourne au moins 10 opportunités éligibles
+- **THEN** le matching retourne au moins 5 opportunités éligibles
 
 #### Scenario: Profil bac2 — quota rempli
 - **WHEN** un utilisateur répond `academic_level: "bac2"` au test
-- **THEN** le matching retourne au moins 10 opportunités éligibles
+- **THEN** le matching retourne au moins 5 opportunités éligibles
 
 #### Scenario: Profil doctorat — quota rempli
 - **WHEN** un utilisateur répond `academic_level: "doctorat"` au test
-- **THEN** le matching retourne au moins 10 opportunités éligibles
+- **THEN** le matching retourne au moins 5 opportunités éligibles
 
 ### Requirement: Couverture de la catégorie emploi
 Le seed SHALL contenir au minimum 3 opportunités de catégorie `emploi`, accessibles à des niveaux variés (`licence`, `master`, `tous`).

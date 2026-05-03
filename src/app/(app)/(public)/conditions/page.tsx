@@ -50,7 +50,7 @@ export default function ConditionsPage() {
             <p className="mb-2">Pendant la phase bêta, KRAAK propose gratuitement :</p>
             <ul className="list-disc pl-5 space-y-1">
               <li>Un <strong>test de profil</strong> (10 questions) pour identifier les opportunités correspondant à ta situation</li>
-              <li>Jusqu&apos;à <strong>10 recommandations personnalisées</strong> issues du catalogue KRAAK (5 affichées initialement)</li>
+              <li>Jusqu&apos;à <strong>5 recommandations personnalisées</strong> issues du catalogue KRAAK</li>
               <li>L&apos;accès à la <strong>liste d&apos;attente</strong> pour être prévenu des nouvelles fonctionnalités</li>
               <li>Un <strong>formulaire de feedback</strong> pour contribuer à l&apos;amélioration du produit</li>
             </ul>
@@ -64,7 +64,7 @@ export default function ConditionsPage() {
             </p>
             <ul className="list-disc pl-5 space-y-1 text-gray-600">
               <li><strong>Guide Premium</strong> — 9 modules de formation pour maximiser ses candidatures</li>
-              <li><strong>Catalogue élargi</strong> — accès à 20 recommandations personnalisées (vs 10 en compte gratuit)</li>
+              <li><strong>Catalogue élargi</strong> — jusqu'à 20 recommandations personnalisées (vs jusqu'à 5 en compte gratuit)</li>
               <li><strong>Accompagnement individuel</strong> — conseil sur dossier avec un conseiller KRAAK</li>
               <li><strong>Alertes deadlines</strong> — rappels automatiques avant les dates limites de candidature</li>
               <li><strong>Newsletter éditoriale</strong> — sélection hebdomadaire des meilleures opportunités</li>

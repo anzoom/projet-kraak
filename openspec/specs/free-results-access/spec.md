@@ -9,20 +9,20 @@ Tous les utilisateurs ayant complété le test de profil SHALL avoir accès à l
 - **WHEN** la page des résultats se charge
 - **THEN** aucune requête vers la table `purchase_accesses` n'est effectuée pour déterminer l'accès
 
-### Requirement: Limitation à 10 recommandations (quota gratuit)
-Le système SHALL fixer le quota de l'utilisateur Classic à 10 opportunités au total, avec 5 affichées initialement. Les abonnés Guide Premium reçoivent jusqu'à 20 recommandations, avec 10 affichées initialement.
+### Requirement: Quota de recommandations (maximum, pas fixe)
+Le système SHALL afficher **jusqu'à 5** recommandations pour les utilisateurs Classic, et **jusqu'à 20** pour les abonnés Guide Premium. Le quota est un plafond — si le matching retourne moins d'opportunités, seules les disponibles sont affichées. Aucune révélation progressive : toutes les recommandations du quota sont affichées directement.
 
-#### Scenario: Résultats limités à 10 pour les utilisateurs Classic
-- **WHEN** le matching retourne plus de 10 opportunités actives et l'utilisateur n'a pas d'accès Guide Premium
-- **THEN** les IDs des 10 meilleures (score décroissant) sont verrouillés dans le quota
+#### Scenario: Quota Classic atteint — jusqu'à 5 opportunités
+- **WHEN** le matching retourne plus de 5 opportunités actives et l'utilisateur n'a pas d'accès Guide Premium
+- **THEN** les IDs des 5 premières (score décroissant) sont verrouillés dans le quota et affichées
 
-#### Scenario: Révélation progressive — Classic
-- **WHEN** le quota Classic contient 10 opportunités
-- **THEN** 5 sont affichées initialement, et un bouton "Voir les X autres opportunités →" permet de révéler les 5 restantes
+#### Scenario: Quota Classic partiel — moins de 5 résultats
+- **WHEN** le matching retourne moins de 5 opportunités actives
+- **THEN** seules les opportunités disponibles sont affichées, sans erreur ni message de quota incomplet
 
-#### Scenario: Résultats limités à 20 pour les abonnés Guide Premium
+#### Scenario: Quota Premium — jusqu'à 20 opportunités
 - **WHEN** un utilisateur avec accès Guide Premium consulte ses résultats
-- **THEN** jusqu'à 20 opportunités peuvent être affichées (10 initialement, 10 révélables)
+- **THEN** jusqu'à 20 opportunités sont affichées directement
 
 #### Scenario: Plafond de sauvegarde Premium
 - **WHEN** un utilisateur Guide Premium sauvegarde des opportunités

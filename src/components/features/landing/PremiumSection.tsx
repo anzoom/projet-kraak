@@ -36,8 +36,13 @@ export default function PremiumSection() {
             <h3 className="text-lg font-black text-white mb-2">Guide Premium</h3>
             <p className="text-white/60 text-sm leading-relaxed">
               9 modules pour maîtriser ta candidature de A à Z — mindset, dossier, rédaction,
-              entretien, stratégie — plus 20 recommandations matching personnalisées.
+              entretien, stratégie — jusqu'à 20 recommandations matching personnalisées.
             </p>
+            <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+              <span className="inline-flex items-center h-5 px-2 rounded-full bg-white/10 text-white/60 text-[10px] font-bold">jusqu'à 20 recommandations</span>
+              <span className="inline-flex items-center h-5 px-2 rounded-full bg-white/10 text-white/60 text-[10px] font-bold">+15 favoris</span>
+              <span className="inline-flex items-center h-5 px-2 rounded-full bg-white/10 text-white/60 text-[10px] font-bold">alertes deadlines</span>
+            </div>
           </div>
 
           {/* Coaching individuel */}

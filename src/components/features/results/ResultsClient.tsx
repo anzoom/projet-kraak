@@ -17,10 +17,8 @@ import BetaCapture from "@/components/features/waitlist/BetaCapture"
 const STORAGE_KEY_SESSION = "kraak_anonymous_session"
 const STORAGE_KEY_RESULT = "kraak_scoring_result"
 const STORAGE_KEY_QUOTA = "kraak_free_quota_ids"
-const MAX_FREE = 10      // total quota classic
-const MAX_PREMIUM = 20   // total quota premium (anti-scraping : saves cap = 15)
-const DISPLAY_FREE = 5   // affichage initial classic
-const DISPLAY_PREMIUM = 10 // affichage initial premium
+const MAX_FREE = 5       // quota classic
+const MAX_PREMIUM = 20   // quota premium (anti-scraping : saves cap = 15)
 
 function answersMatch(a: Record<string, string>, b: Record<string, string>): boolean {
   const keysA = Object.keys(a)
@@ -44,7 +42,6 @@ type State =
 export default function ResultsClient({ opportunities, needsScoring = false, isAuthenticated = false, maxResults = MAX_FREE }: Props) {
   const [state, setState] = useState<State>({ status: "loading" })
   const [showFavorites, setShowFavorites] = useState(false)
-  const [showAll, setShowAll] = useState(false)
   const isPremium = false // Phase MVP : pas d'accès premium actif
   const limit = maxResults // MAX_PREMIUM utilisé quand isPremium sera actif
   const { savedIds, isSaved, toggle, count: savedCount, limitReached, maxSaved } = useSavedOpportunities({ isPremium, isAuthenticated })
@@ -225,15 +222,7 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
     } satisfies Recommendation
   })
 
-  // Révélation progressive : classic = 5 puis 5, premium = 10 puis 10
-  const displayLimit = isPremium ? DISPLAY_PREMIUM : DISPLAY_FREE
-  const visibleFree = !showFavorites
-    ? free.slice(0, showAll ? free.length : displayLimit)
-    : free
-  const displayedFree = showFavorites ? favoriteRecs : visibleFree
-  const hiddenCount = !showFavorites && !showAll
-    ? Math.max(0, free.length - displayLimit)
-    : 0
+  const displayedFree = showFavorites ? favoriteRecs : free
 
   return (
     <div className="w-full max-w-lg space-y-6">
@@ -320,14 +309,25 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
               )}
             </div>
 
-            {/* Révélation progressive des opportunités restantes */}
-            {hiddenCount > 0 && (
-              <button
-                onClick={() => setShowAll(true)}
-                className="mt-3 w-full h-11 rounded-full border-2 border-primary text-primary font-bold text-sm hover:bg-primary hover:text-white transition-colors"
-              >
-                Voir les {hiddenCount} autres opportunités →
-              </button>
+            {/* Upgrade teaser Classic → Premium */}
+            {!isPremium && !showFavorites && isAuthenticated && (
+              <div className="mt-3 bg-primary/5 border-2 border-primary/20 rounded-2xl p-4 flex items-start gap-3">
+                <span className="text-xl shrink-0">🚀</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-slate-dark mb-1">
+                    Passe en Premium — vois 2× plus
+                  </p>
+                  <p className="text-xs text-slate-mid leading-relaxed mb-3">
+                    Compte Classic : <strong>jusqu'à 5 recommandations</strong>. Guide Premium : <strong>jusqu'à 20 recommandations</strong> + 15 favoris sauvegardables.
+                  </p>
+                  <Link
+                    href="/guide-premium"
+                    className="inline-flex items-center h-8 px-4 rounded-full border-2 border-primary text-primary font-bold text-xs hover:bg-primary hover:text-white transition-colors"
+                  >
+                    Découvrir le Guide Premium →
+                  </Link>
+                </div>
+              </div>
             )}
           </div>
 
@@ -338,7 +338,7 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
                 <Lock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold text-slate-dark text-sm mb-1">
-                    Quota gratuit atteint ({limit} opportunités)
+                    Quota gratuit atteint (jusqu'à {limit} opportunités)
                   </p>
                   <p className="text-xs text-slate-mid leading-relaxed mb-3">
                     Tu as déjà consulté tes {limit} opportunités gratuites. Modifier les critères ne débloque pas de nouvelles recommandations — ces résultats sont ceux qui t&apos;ont été attribués.

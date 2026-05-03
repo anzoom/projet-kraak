@@ -95,7 +95,7 @@ function buildConfirmationHtml(name: string): string {
       </p>
       <ul style="margin:0;padding-left:20px;font-size:13px;color:#6b7280;line-height:2.2;">
         <li>Test de profil — identifie les opportunités faites pour toi</li>
-        <li>10 recommandations personnalisées basées sur ton profil (5 affichées initialement)</li>
+        <li>Jusqu'à 5 recommandations personnalisées basées sur ton profil</li>
         <li>Guide d'orientation (bientôt 9 modules complets)</li>
         <li>Alertes nouvelles opportunités dès le lancement</li>
       </ul>

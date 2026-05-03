@@ -14,15 +14,11 @@ La page `/results` SHALL afficher le segment de l'utilisateur (Explorer, Candida
 - **THEN** un bouton "Faire le test" est affiché à la place des résultats
 
 ### Requirement: Affichage des recommandations libres
-La page SHALL afficher jusqu'à `maxResults` (10 par défaut pour Classic, 20 pour les abonnés Guide Premium) `Recommendation[]` (triées par `match_score` décroissant) avec : titre de l'opportunité, pays, catégorie, deadline (si définie), type de financement, justification, description courte (si disponible), et un lien de candidature (si `source_url` défini). L'affichage initial est limité à `DISPLAY_FREE = 5` (Classic) ou `DISPLAY_PREMIUM = 10` (Premium), avec révélation progressive via un bouton.
+La page SHALL afficher jusqu'à `maxResults` (5 par défaut pour Classic, 20 pour les abonnés Guide Premium) `Recommendation[]` (triées par `match_score` décroissant) avec : titre de l'opportunité, pays, catégorie, deadline (si définie), type de financement, justification, description courte (si disponible), et un lien de candidature (si `source_url` défini). Toutes les recommandations du quota sont affichées directement, sans révélation progressive.
 
 #### Scenario: Recommandations visibles dans la limite du quota
 - **WHEN** le matching produit des recommandations et un utilisateur authentifié consulte `/results`
-- **THEN** 5 recommandations sont affichées initialement (ou 10 si l'utilisateur a un accès Guide Premium), avec un bouton pour révéler les suivantes
-
-#### Scenario: Révélation progressive des opportunités restantes
-- **WHEN** le quota contient plus d'opportunités que l'affichage initial
-- **THEN** un bouton "Voir les X autres opportunités →" est affiché sous la liste et révèle les opportunités restantes au clic
+- **THEN** jusqu'à 5 recommandations sont affichées (ou jusqu'à 20 si l'utilisateur a un accès Guide Premium)
 
 #### Scenario: Moins de recommandations que le quota
 - **WHEN** le matching produit moins de résultats que `maxResults`
@@ -144,7 +140,7 @@ Lors de la première consultation, les identifiants des `maxResults` premières 
 
 #### Scenario: Alerte quota épuisé affiché
 - **WHEN** les critères modifiés par l'utilisateur produiraient un nouveau jeu d'opportunités (`quotaExhausted = true`)
-- **THEN** un bloc d'alerte amber est affiché avec le message "Quota gratuit atteint (10 opportunités)" et un CTA vers `/guide-premium`
+- **THEN** un bloc d'alerte amber est affiché avec le message "Quota gratuit atteint (jusqu'à 5 opportunités)" et un CTA vers `/guide-premium`
 
 #### Scenario: Quota absent pour les abonnés Guide Premium
 - **WHEN** un utilisateur Guide Premium consulte ses résultats (`maxResults = 20`)

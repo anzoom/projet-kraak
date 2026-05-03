@@ -73,7 +73,7 @@ Valider rapidement :
 - Landing page
 - Test de profil / orientation
 - Moteur de scoring
-- Matching : max 10 opportunités (5 affichées initialement, 5 révélables)
+- Matching : jusqu'à 5 recommandations personnalisées
 - Explication de pertinence par opportunité
 - Badges visuels de mise en avant
 - Bloc coaching premium (upsell non bloquant)
@@ -114,10 +114,10 @@ Valider rapidement :
 # 4. Modèle de monétisation
 
 ## 4.1 Principe
-L'accès aux 10 meilleures opportunités (5 affichées initialement, 5 révélables) est **entièrement gratuit**. La monétisation repose sur cinq piliers :
+L'accès aux meilleures opportunités (jusqu'à 5) est **entièrement gratuit**. La monétisation repose sur cinq piliers :
 
 ### Guide Premium
-Abonnement mensuel (2 500 XOF) ou annuel (19 900 XOF) donnant accès aux 9 modules du guide interactif, aux 20 recommandations matching (vs 10 gratuit, avec sauvegarde jusqu'à 15 favoris), aux alertes personnalisées et à la newsletter. Offre principale : l'annuel à moins de 3€/mois. Paiement géré par **Chariow** (page produit hébergée, lien direct depuis `/guide-premium`).
+Abonnement mensuel (2 500 XOF) ou annuel (19 900 XOF) donnant accès aux 9 modules du guide interactif, jusqu'à 20 recommandations matching (vs jusqu'à 5 gratuit, avec sauvegarde jusqu'à 15 favoris), aux alertes personnalisées et à la newsletter. Offre principale : l'annuel à moins de 3€/mois. Paiement géré par **Chariow** (page produit hébergée, lien direct depuis `/guide-premium`).
 
 ### Coaching
 Accompagnement personnalisé proposé après l'affichage des résultats. Deux formules : audit de dossier (15 000 XOF) et accompagnement complet (50 000 XOF). Paiement géré par **Chariow** (une page produit par offre, lien direct depuis `/coaching`).
@@ -253,10 +253,10 @@ Transformer les réponses en profil utilisateur exploitable.
 
 ## 7.4 Matching et recommandations
 ### Objectif
-Afficher jusqu'à 10 opportunités les plus adaptées au profil utilisateur (Classic) avec une explication de pertinence.
+Afficher jusqu'à 5 opportunités les plus adaptées au profil utilisateur (Classic) avec une explication de pertinence.
 
 ### Exigences
-- **Maximum 10 opportunités** dans le quota Classic (5 affichées initialement, 5 révélables via bouton).
+- **Jusqu'à 5 opportunités** dans le quota Classic.
 - Filtrage strict par : objectif, domaine, pays cible, niveau académique, budget, horizon de départ.
 - Tri par score de pertinence décroissant.
 - Chaque opportunité doit afficher :
@@ -411,8 +411,8 @@ Permettre à l'équipe de gérer les opportunités et de superviser l'applicatio
 ### Écosystème KRAAK
 | Produit | Prix | Valeur |
 |---|---|---|
-| KRAAK (gratuit) | Gratuit | Identifie tes 10 meilleures opportunités |
-| **KRAAK Premium Guide** | 2 500 XOF/mois ou 19 900 XOF/an | Apprends à les décrocher + 20 recommandations + alertes + newsletter |
+| KRAAK (gratuit) | Gratuit | Jusqu'à 5 recommandations personnalisées |
+| **KRAAK Premium Guide** | 2 500 XOF/mois ou 19 900 XOF/an | Apprends à les décrocher + jusqu'à 20 recommandations + alertes + newsletter |
 | Coaching premium | 15 000–50 000 XOF/session | Accompagnement personnalisé sur ton dossier |
 
 ### Absence de cannibalisation

@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   description: "Découvre les opportunités les plus adaptées à ton profil.",
 }
 
-// Classic : 10 oppos quota, 5 affichées à la fois
-// Premium : 20 oppos quota, 10 affichées à la fois — saves cap = 15 (anti-scraping)
-const MAX_RESULTS_CLASSIC = 10
+// Classic : jusqu'à 5 recommandations
+// Premium : jusqu'à 20 recommandations — saves cap = 15 (anti-scraping)
+const MAX_RESULTS_CLASSIC = 5
 const MAX_RESULTS_PREMIUM = 20
 
 export default async function ResultsPage({

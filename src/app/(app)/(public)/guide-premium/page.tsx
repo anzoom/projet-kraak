@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, BookOpen, Bell, Users, Zap } from "lucide-react"
+import { ArrowLeft, BookOpen, Bell, Users, Zap, Check, X } from "lucide-react"
 import BetaCapture from "@/components/features/waitlist/BetaCapture"
 
 export const metadata: Metadata = {
@@ -16,7 +16,7 @@ const UPCOMING = [
   },
   {
     icon: "🎯",
-    title: "20 recommandations matching",
+    title: "Jusqu'à 20 recommandations",
     desc: "2× plus de recommandations personnalisées selon ton profil et tes objectifs.",
     highlight: false,
   },
@@ -73,6 +73,66 @@ export default function GuidePremiumPage() {
             les meilleures opportunités. Rejoins la liste pour y accéder en avant-première,
             gratuitement.
           </p>
+        </div>
+
+        {/* Comparaison Classic vs Premium */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Classic */}
+          <div className="bg-white border-2 border-gray-100 rounded-2xl p-4 flex flex-col gap-3">
+            <div>
+              <p className="text-[10px] font-bold text-slate-mid uppercase tracking-widest mb-0.5">Gratuit</p>
+              <p className="text-base font-black text-slate-dark">Classic</p>
+            </div>
+            <div>
+              <p className="text-3xl font-black text-slate-dark leading-none">5</p>
+              <p className="text-xs text-slate-mid mt-0.5">recommandations max.</p>
+            </div>
+            <div className="border-t border-gray-100 pt-3 space-y-2">
+              {[
+                { label: "Recommandations", ok: true },
+                { label: "Favoris", ok: false },
+                { label: "Guide formation", ok: false },
+                { label: "Alertes deadlines", ok: false },
+              ].map((row) => (
+                <div key={row.label} className="flex items-center gap-1.5">
+                  {row.ok
+                    ? <Check className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                    : <X className="w-3.5 h-3.5 text-gray-300 shrink-0" />}
+                  <span className={["text-xs", row.ok ? "text-slate-dark font-medium" : "text-gray-300"].join(" ")}>
+                    {row.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Premium */}
+          <div className="bg-primary rounded-2xl p-4 flex flex-col gap-3">
+            <div>
+              <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">Premium</p>
+              <p className="text-base font-black text-white">Guide</p>
+            </div>
+            <div>
+              <p className="text-3xl font-black text-white leading-none">20</p>
+              <p className="text-xs text-white/70 mt-0.5">recommandations max.</p>
+            </div>
+            <div className="border-t border-white/20 pt-3 space-y-2">
+              {[
+                { label: "Recommandations", sub: "×2" },
+                { label: "15 favoris max", sub: null },
+                { label: "9 modules formation", sub: null },
+                { label: "Alertes deadlines", sub: null },
+              ].map((row) => (
+                <div key={row.label} className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white/80 shrink-0" />
+                  <span className="text-xs text-white font-medium">{row.label}</span>
+                  {row.sub && (
+                    <span className="text-[10px] font-bold text-white/60 bg-white/10 px-1.5 rounded-full">{row.sub}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Ce qui arrive */}
