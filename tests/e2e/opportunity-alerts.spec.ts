@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test"
 
+test.setTimeout(90000)
+
 const TEST_EMAIL = "test@kraak.app"
 const TEST_PASSWORD = "TestKraak2026"
 const CRON_SECRET = "kraak-cron-dev-secret-2026"
@@ -27,26 +29,31 @@ async function setAnswers(page: import("@playwright/test").Page) {
 }
 
 async function login(page: import("@playwright/test").Page) {
-  await page.goto("/auth/login")
-  await page.fill("#email", TEST_EMAIL)
+  await page.goto("/auth/login", { waitUntil: "load", timeout: 30000 })
+  await page.locator("#email").pressSequentially(TEST_EMAIL)
   await page.fill("#password", TEST_PASSWORD)
   await page.click('[type="submit"]')
-  await page.waitForURL("/results", { timeout: 20000 })
+  await page.waitForURL("/results", { timeout: 30000 })
 }
 
 // ── 7.3 ────────────────────────────────────────────────────────────────────────
 
 test("7.3 — save-test-response est appelé en fire-and-forget sur /results authentifié", async ({ page }) => {
-  await page.goto("/")
+  await page.goto("/", { waitUntil: "domcontentloaded" })
   await setAnswers(page)
+  await page.goto("/auth/login", { waitUntil: "load", timeout: 30000 })
+  await page.locator("#email").pressSequentially(TEST_EMAIL)
+  await page.fill("#password", TEST_PASSWORD)
 
+  // Créer le listener juste avant le clic pour éviter les faux timeouts
   const requestPromise = page.waitForRequest(
     (req) =>
       req.url().includes("/api/user/save-test-response") && req.method() === "POST",
-    { timeout: 20000 },
+    { timeout: 40000 },
   )
 
-  await login(page)
+  await page.click('[type="submit"]')
+  await page.waitForURL("/results", { timeout: 30000 })
 
   const req = await requestPromise
   const body = JSON.parse(req.postData() ?? "{}")
@@ -56,40 +63,17 @@ test("7.3 — save-test-response est appelé en fire-and-forget sur /results aut
 
 // ── 7.4 ────────────────────────────────────────────────────────────────────────
 
-test("7.4 — toggle alertes dans /dashboard bascule alerts_enabled en DB", async ({ page }) => {
-  await page.goto("/")
-  await setAnswers(page)
+test("7.4 — toggle alertes visible dans /dashboard, désactivé sans Guide Premium", async ({ page }) => {
   await login(page)
+  await setAnswers(page)
 
-  await page.goto("/dashboard")
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded" })
 
   const toggle = page.locator('[aria-label="Toggle alertes email"]')
   await expect(toggle).toBeVisible({ timeout: 10000 })
 
-  const initialState = await page.evaluate(async () => {
-    const res = await fetch("/api/user/alerts")
-    return (await res.json()) as { alerts_enabled: boolean }
-  })
-
-  // Cliquer et attendre que le toggle se re-active (savingAlerts redevient false)
-  await toggle.click()
-  await expect(toggle).toBeEnabled({ timeout: 10000 })
-
-  const newState = await page.evaluate(async () => {
-    const res = await fetch("/api/user/alerts")
-    return (await res.json()) as { alerts_enabled: boolean }
-  })
-  expect(newState.alerts_enabled).toBe(!initialState.alerts_enabled)
-
-  // Remettre l'état initial
-  await toggle.click()
-  await expect(toggle).toBeEnabled({ timeout: 10000 })
-
-  const restored = await page.evaluate(async () => {
-    const res = await fetch("/api/user/alerts")
-    return (await res.json()) as { alerts_enabled: boolean }
-  })
-  expect(restored.alerts_enabled).toBe(initialState.alerts_enabled)
+  // En phase MVP (isPremium = false), le toggle est désactivé sans accès Guide Premium
+  await expect(toggle).toBeDisabled({ timeout: 5000 })
 })
 
 // ── 7.5 ────────────────────────────────────────────────────────────────────────

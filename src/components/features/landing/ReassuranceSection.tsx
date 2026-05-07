@@ -9,7 +9,7 @@ const items = [
   },
   {
     icon: Zap,
-    title: "Résultat en moins de 3 minutes",
+    title: "Résultat en moins d'1 minute",
     description:
       "10 questions courtes. Un scoring instantané. Tu sais exactement quelles opportunités te correspondent avant même d'avoir pris ton café.",
   },

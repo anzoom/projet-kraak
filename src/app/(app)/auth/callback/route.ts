@@ -29,6 +29,16 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // Envoyer l'email de bienvenue (idempotent via welcome_sent)
+      try {
+        await fetch(`${origin}/api/user/welcome`, {
+          method: "POST",
+          headers: { cookie: request.headers.get("cookie") ?? "" },
+        })
+      } catch {
+        // non bloquant
+      }
+
       const from = searchParams.get("from")
       const redirectUrl = new URL(`${origin}${next}`)
       if (from === "test") {

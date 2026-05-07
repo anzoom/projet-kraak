@@ -12,18 +12,15 @@ export function computeScore(answers: TestAnswers): ScoringOutput {
       lookup(SCORING_RULES.academic_level, answers.academic_level)) /
     2
 
-  const financial_score =
-    lookup(SCORING_RULES.budget, answers.budget) * 0.7 +
-    lookup(SCORING_RULES.invest_readiness, answers.invest_readiness) * 0.3
+  const financial_score = lookup(SCORING_RULES.budget, answers.budget)
 
   const maturity_score =
-    (lookup(SCORING_RULES.dossier_maturity, answers.dossier_maturity) +
-      lookup(SCORING_RULES.timeline, answers.timeline) +
-      lookup(SCORING_RULES.main_blocker, answers.main_blocker)) /
-    3
+    lookup(SCORING_RULES.dossier_maturity, answers.dossier_maturity) * 0.55 +
+    lookup(SCORING_RULES.timeline, answers.timeline) * 0.30 +
+    lookup(SCORING_RULES.main_blocker, answers.main_blocker) * 0.15
 
   const global_score =
-    academic_score * 0.4 + financial_score * 0.3 + maturity_score * 0.3
+    academic_score * 0.35 + financial_score * 0.25 + maturity_score * 0.40
 
   const segment: Segment =
     global_score >= 70 ? "Finaliste" : global_score >= 40 ? "Candidat" : "Explorer"

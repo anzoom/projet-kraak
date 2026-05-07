@@ -36,7 +36,7 @@ Le moteur SHALL exclure toute opportunité dont `category` ne correspond pas exa
 - **THEN** l'opportunité est exclue, même si elle cumule un score élevé sur d'autres critères
 
 ### Requirement: Hard filter on domain
-Le moteur SHALL exclure toute opportunité dont `domain` ne correspond pas exactement à `answers.domain` (comparaison normalisée).
+Le moteur SHALL exclure toute opportunité dont `domain` ne correspond pas exactement à `answers.domain` (comparaison normalisée). Les valeurs spéciales `"multidisciplinaire"` et `"autre"` désactivent ce filtre.
 
 #### Scenario: Domaine correspondant retenu
 - **WHEN** `opportunity.domain = "commerce"` et `answers.domain = "commerce"`
@@ -50,8 +50,12 @@ Le moteur SHALL exclure toute opportunité dont `domain` ne correspond pas exact
 - **WHEN** `answers.domain` est absent ou vide
 - **THEN** aucun filtre domaine n'est appliqué
 
+#### Scenario: Domaine "autre" — filtre désactivé
+- **WHEN** `answers.domain = "autre"` (utilisateur n'a pas encore décidé)
+- **THEN** aucun filtre domaine n'est appliqué (traité comme `multidisciplinaire`)
+
 ### Requirement: Hard filter on country
-Le moteur SHALL exclure toute opportunité dont `country` ne correspond pas à `answers.target_country`, sauf si `target_country = "peu_importe"`.
+Le moteur SHALL exclure toute opportunité dont `country` ne correspond pas à `answers.target_country`, sauf si `target_country = "peu_importe"` ou si `opportunity.country = "international"`.
 
 #### Scenario: Pays correspondant retenu
 - **WHEN** `opportunity.country = "france"` et `answers.target_country = "france"`
@@ -64,6 +68,10 @@ Le moteur SHALL exclure toute opportunité dont `country` ne correspond pas à `
 #### Scenario: Peu importe — filtre désactivé
 - **WHEN** `answers.target_country = "peu_importe"`
 - **THEN** aucun filtre pays n'est appliqué ; les opportunités à financement complet reçoivent le bonus pays (+20)
+
+#### Scenario: Opportunité internationale — toujours incluse
+- **WHEN** `opportunity.country = "international"` (portée mondiale)
+- **THEN** l'opportunité est éligible quel que soit `answers.target_country` (y compris pour les cibles pays spécifiques)
 
 ### Requirement: Hard filter on country — cible "afrique hors pays d'origine"
 Le moteur SHALL, lorsque `answers.target_country = "afrique"`, inclure uniquement les opportunités dont le `country` est `"afrique"` ou appartient à la liste des pays africains supportés, ET exclure les opportunités dont le `country` correspond au pays d'origine de l'utilisateur (`answers.origin_country`).

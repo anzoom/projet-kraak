@@ -1,7 +1,7 @@
 # Architecture technique — KRAAK
-**Version :** 4.0
+**Version :** 5.2
 **Dernière mise à jour :** Avril 2026
-**Statut :** Validé — intègre les corrections de la revue d'architecture
+**Statut :** Validé — paiement MVP via Chariow (pre-checkout token), alertes deadlines 90/30/7j, pages légales, CinetPay natif prévu Phase 3
 
 ---
 
@@ -33,16 +33,15 @@
 │  │                             API Routes                       │  │
 │  │                             /api/scoring                     │  │
 │  │                             /api/matching                    │  │
-│  │                             /api/payment/initiate            │  │
-│  │                             /api/payment/revoke              │  │
-│  │                             /api/webhooks/cinetpay           │  │
+│  │                             /api/coaching/slots              │  │
+│  │                             /api/coaching/book               │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 └───────────────────┬──────────────────────┬─────────────────────────┘
                     │                      │
          ┌──────────▼──────────┐  ┌────────▼────────────┐
          │   Supabase          │  │  Services externes   │
          │                     │  │                     │
-         │   PostgreSQL        │  │  CinetPay            │
+         │   PostgreSQL        │  │  Chariow (paiement)  │
          │   Supabase Auth     │  │  PostHog             │
          │   Storage           │  │  Sentry              │
          │                     │  │  Resend              │
@@ -171,7 +170,7 @@ export function middleware(request: NextRequest) {
 
 ### 3.5 Parcours utilisateur et gestion du score
 
-**Décision retenue : compte créé après le test, avant le paywall.**
+**Décision retenue : compte créé après le test, accès aux résultats entièrement gratuit.**
 
 Le test est anonyme. Les réponses sont stockées dans `localStorage` (pas `sessionStorage`) pour survivre aux interruptions mobiles — appel entrant, batterie faible, fermeture d'onglet.
 
@@ -182,34 +181,22 @@ Le test est anonyme. Les réponses sont stockées dans `localStorage` (pas `sess
 4. TestResponse lu depuis localStorage, persisté en base avec user_id
 5. localStorage vidé (données sensibles nettoyées)
 6. Scoring calculé → UserProfileScore créé → score_id retourné
-7. score_id stocké dans un cookie de session sécurisé (HttpOnly)
-8. Redirection → /results (aperçu partiel + paywall)
+7. Redirection → /results (5 opportunités complètes + bloc coaching upsell)
 ```
 
-**Routing des résultats :**
+**Routing des résultats (MVP — accès gratuit) :**
 
 | Route | Accès requis | Contenu |
 |---|---|---|
-| `/results` | JWT Supabase valide | Aperçu partiel (2–3 opps) + paywall |
-| `/results/[scoreId]` | JWT + PurchaseAccess valide et non expiré | Toutes les recommandations + plan d'action |
+| `/results` | JWT Supabase valide | 5 recommandations complètes + badges + justification + bloc coaching |
 
-```typescript
-// Vérification dans /results/[scoreId]/page.tsx
-const access = await prisma.purchaseAccess.findFirst({
-  where: {
-    user_id: currentUserId,
-    score_id: params.scoreId,
-    expires_at: { gt: new Date() }  // accès non expiré
-  }
-})
-if (!access) redirect('/results')  // retour au paywall
-```
+> Le paywall et la route `/results/[scoreId]` sont supprimés du MVP. L'accès aux résultats complets est gratuit pour tous les utilisateurs authentifiés. La monétisation repose sur le coaching premium (Phase 3).
 
 ---
 
 ### 3.6 Moteur de scoring et matching
 
-Fonctions **TypeScript pures**, sans dépendance framework, testées de manière exhaustive.
+Fonctions **TypeScript pures**, sans dépendance framework, testées de manière exhaustive (57 tests unitaires).
 
 ```
 src/domain/
@@ -224,86 +211,101 @@ src/domain/
 
 Même jeu de réponses → même score, toujours. Chaque règle est traçable.
 
+**Filtres de matching (ordre d'application) :**
+1. `is_active = true`
+2. `deadline` non expirée (null = toujours valide)
+3. `study_level` compatible avec `academic_level` utilisateur
+4. `category` === `main_objective` utilisateur (insensible à la casse)
+5. `domain` === domaine utilisateur — **exception : `multidisciplinaire` passe toujours**
+6. `country` === zone cible utilisateur (`peu_importe` → aucun filtre)
+7. `budget_required` ≤ plafond utilisateur (petit=500 000 XOF, moyen=2 000 000 XOF)
+8. `deadline` compatible avec `timeline` (urgent ≤ 90 j, court ≤ 180 j, moyen ≤ 365 j)
+
+**Scoring de pertinence (total max = 100) :**
+- +30 catégorie (toujours si filtre passé)
+- +25 domaine (si domaine renseigné)
+- +20 zone géographique (si zone spécifique, pas `peu_importe`)
+- +15 financement complet (`funding_type = complete`) si budget utilisateur = zéro
+- +10 deadline dans les 90 prochains jours
+
 ---
 
 ### 3.7 Paiement
+
+#### Phase 2 — Chariow (pre-checkout token)
+
+> Approche retenue pour le MVP : pages produit hébergées sur Chariow, avec pré-génération d'un token côté KRAAK pour activer automatiquement l'abonnement au retour.
+
+| Élément | Choix | Détail |
+|---|---|---|
+| Plateforme | **Chariow** | Pages produit hébergées |
+| Initiation | `POST /api/checkout/initiate` | Crée `CheckoutSession` (token UUID, TTL 1h), construit l'URL Chariow avec `?success_url=` |
+| Retour paiement | `GET /guide/success?token=` | Page Next.js SSR — appelle verify, affiche état succès/erreur |
+| Activation | `GET /api/checkout/verify?token=` | Valide le token, crée `GuideSubscription` en transaction atomique, envoie email Resend |
+| Webhook (stub) | `POST /api/webhooks/chariow` | Validation HMAC prête, inactive — activé en Phase 3 |
+| Variables | `NEXT_PUBLIC_CHARIOW_*_URL` dans `.env.local` + Vercel | 4 URLs à renseigner depuis le dashboard Chariow |
+
+**Flux de réconciliation :**
+```
+1. User clique "Souscrire"
+   → POST /api/checkout/initiate
+   → CheckoutSession créé { token, user_id, plan, expires_at: +1h }
+   → Redirection vers Chariow?success_url=kraak.co/guide/success?token=xxx
+
+2. User paie sur Chariow
+   → Chariow redirige vers kraak.co/guide/success?token=xxx
+
+3. Page /guide/success (SSR)
+   → GET /api/checkout/verify?token=xxx
+   → CheckoutSession validé (PENDING → COMPLETED)
+   → GuideSubscription créé (transaction atomique)
+   → Email bienvenue (Resend)
+   → Redirect /guide (accès immédiat)
+
+Fallback : si token expiré mais user encore authentifié
+   → réconciliation par user_id (CheckoutSession PENDING le plus récent)
+```
+
+**Produits Chariow à créer :**
+- Guide KRAAK — Plan mensuel (2 500 XOF/mois) → `NEXT_PUBLIC_CHARIOW_GUIDE_MONTHLY_URL`
+- Guide KRAAK — Plan annuel (19 900 XOF/an) → `NEXT_PUBLIC_CHARIOW_GUIDE_ANNUAL_URL`
+- Coaching — Audit de dossier (15 000 XOF) → `NEXT_PUBLIC_CHARIOW_COACHING_AUDIT_URL`
+- Coaching — Accompagnement complet (50 000 XOF) → `NEXT_PUBLIC_CHARIOW_COACHING_ACCOMPAGNEMENT_URL`
+
+#### Phase 3 — CinetPay / Notchpay (intégration native, si volumes le justifient)
 
 | Élément | Choix | Détail |
 |---|---|---|
 | PSP principal | **CinetPay** | Orange Money, MTN MoMo, Moov, Wave |
 | PSP fallback | **Notchpay** | Couverture complémentaire |
 | Intégration | Webhook + vérification signature HMAC | Jamais de validation côté client |
-| Stockage | `psp_transaction_id` uniquement | Aucune donnée de carte conservée |
-| Durée d'accès | **6 mois** | `expires_at = now() + 6 mois` |
-| Montants | **Entiers en XOF** (centimes) | Pas de virgule flottante sur les montants financiers |
-
-**Flux paiement :**
-```
-1. "Payer" → POST /api/payment/initiate
-2. Payment(PENDING) créé en base
-3. CinetPay API → payment_url retournée
-4. Utilisateur paie sur interface CinetPay (Mobile Money)
-5. CinetPay → webhook POST /api/webhooks/cinetpay
-6. Serveur vérifie signature HMAC
-7. Contrôle idempotence : psp_transaction_id déjà traité ? → ignorer
-8. Si SUCCESS :
-   - Payment(SUCCESS) mis à jour
-   - PurchaseAccess créé (expires_at = now() + 6 mois)
-   - Email confirmation via Resend
-9. Redirection → /results/[scoreId] (accès complet)
-```
-
-**Idempotence du webhook :**
-```typescript
-// /api/webhooks/cinetpay/route.ts
-const existing = await prisma.payment.findUnique({
-  where: { psp_transaction_id: payload.transaction_id }
-})
-// Si déjà SUCCESS → retourner 200 sans retraiter
-if (existing?.status === 'SUCCESS') {
-  return NextResponse.json({ received: true })
-}
-```
+| Montants | **Entiers en XOF** | Pas de virgule flottante sur les montants financiers |
 
 ---
 
-### 3.8 Remboursement
+### 3.8 Import des opportunités (CSV)
 
-CinetPay ne supporte pas le remboursement programmatique sur tous les opérateurs Mobile Money. **Le remboursement CinetPay est traité manuellement** via le tableau de bord CinetPay par l'administrateur.
+Le script d'import est un module Node.js (`scripts/import-opportunities.js`) qui se connecte directement à PostgreSQL via le client `pg`.
 
-L'application gère uniquement sa partie : révoquer l'accès et notifier l'utilisateur.
-
-**Flux remboursement :**
-```
-1. Admin rembourse manuellement via dashboard CinetPay
-2. Admin déclenche la révocation depuis /admin (action Payload)
-3. POST /api/payment/revoke { paymentId }  (endpoint protégé AdminUser)
-4. Transaction atomique :
-   - Payment(REFUNDED) mis à jour
-   - PurchaseAccess supprimé
-5. Email de confirmation envoyé à l'utilisateur via Resend
-```
-
----
-
-### 3.9 Import des opportunités (CSV)
-
-```bash
-# Valider sans importer
-npx tsx scripts/import-opportunities.ts --file opportunities.csv --dry-run
-
-# Importer
-npx tsx scripts/import-opportunities.ts --file opportunities.csv
-```
-
-Utilise la Payload Local API. Chaque ligne est validée par le schéma Payload avant insertion. Les lignes invalides sont rejetées dans `import-errors.log`.
-
-**Format CSV :**
+**Format CSV attendu :**
 ```
 title, country, category, study_level, domain, funding_type,
 budget_required, deadline, competitiveness_level,
 eligibility_summary, source_url, short_description
 ```
+
+**Valeurs acceptées par champ :**
+
+| Champ | Valeurs |
+|---|---|
+| `country` | `afrique`, `europe`, `amerique_nord`, `asie`, `amerique_sud`, `moyen_orient`, `oceanie`, `international` |
+| `category` | `bourse`, `programme`, `fellowship`, `concours`, `prix`, `autre` |
+| `study_level` | `bac`, `bac2`, `bac3`, `bac5`, `doctorat`, `tous` |
+| `funding_type` | `complete`, `partial`, `non_financee`, `salariee` |
+
+Le script normalise automatiquement les variantes courantes (encodage, casse, accents) et déduplique par slug de titre. Les lignes invalides sont ignorées avec log dans la console.
+
+**État actuel du catalogue (2026-04-28) :** 149 opportunités actives.
 
 ---
 
@@ -312,7 +314,7 @@ eligibility_summary, source_url, short_description
 | Environnement | Hébergement | Base de données | Usage |
 |---|---|---|---|
 | **Développement** | Local (`localhost:3000`) | Supabase projet dev | Code quotidien |
-| **Staging** | Vercel (branche `staging`) | Supabase projet staging | Validation avant prod, CinetPay sandbox |
+| **Staging** | Vercel (branche `staging`) | Supabase projet staging | Validation avant prod, URLs Chariow staging |
 | **Production** | Vercel (branche `main`) | Supabase projet prod | Utilisateurs réels |
 
 Chaque environnement a ses propres variables d'environnement — aucun partage de base de données entre staging et production.
@@ -365,14 +367,12 @@ test_started
 test_step_completed        { step: number }
 test_completed
 account_created
-results_preview_viewed
-paywall_displayed
-payment_initiated          { psp: "cinetpay" | "notchpay" }
-payment_succeeded
-payment_failed             { reason: string }
-full_results_viewed
-access_expired             { days_since_purchase: number }
-refund_issued
+results_viewed
+opportunity_clicked        { opportunity_id, opportunity_title, badge }
+opportunity_link_opened    { opportunity_id, source_url }
+coaching_cta_clicked       { cta_label: string }
+coaching_checkout_started  { offer: "audit" | "accompagnement" }
+guide_cta_clicked          { source: string }
 dashboard_accessed
 ```
 
@@ -380,89 +380,98 @@ dashboard_accessed
 
 ## 4. Schéma de données (Prisma)
 
+> Schéma complet Phase 2. Les modèles `Payment` et `PurchaseAccess` sont réservés à la Phase 3 (CinetPay natif).
+
+### Tables Prisma (logique métier)
+
 ```prisma
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  supabase_uid  String    @unique
-  deleted_at    DateTime?           // soft delete — null = actif
-  created_at    DateTime  @default(now())
+  id             String    @id @default(cuid())
+  email          String    @unique
+  supabase_uid   String    @unique
+  alerts_enabled Boolean   @default(false)
+  welcome_sent   Boolean   @default(false)
+  deleted_at     DateTime?
+  created_at     DateTime  @default(now())
 
-  test_responses    TestResponse[]
-  purchase_accesses PurchaseAccess[]
-  payments          Payment[]
+  test_responses             TestResponse[]
+  purchase_accesses          PurchaseAccess[]
+  payments                   Payment[]
+  guide_subscriptions        GuideSubscription[]
+  saved_opportunities        SavedOpportunity[]
+  deadline_alert_preferences DeadlineAlertPreference[]
+  checkout_sessions          CheckoutSession[]
 }
 
-model TestResponse {
-  id          String   @id @default(cuid())
-  user_id     String
-  answers     Json
-  completed   Boolean  @default(false)
-  created_at  DateTime @default(now())
-
-  user          User              @relation(fields: [user_id], references: [id])
-  profile_score UserProfileScore?
-}
-
-model UserProfileScore {
-  id               String   @id @default(cuid())
-  test_response_id String   @unique
-  academic_score   Int
-  financial_score  Int
-  maturity_score   Int
-  segment          String
-  computed_at      DateTime @default(now())
-
-  test_response     TestResponse     @relation(fields: [test_response_id], references: [id])
-  recommendations   Recommendation[]
-  purchase_accesses PurchaseAccess[]
-}
-
-model Recommendation {
-  id             String @id @default(cuid())
-  score_id       String
-  opportunity_id String   // référence vers table Payload CMS
-  match_score    Float
-  justification  String
-
-  profile_score  UserProfileScore @relation(fields: [score_id], references: [id])
-}
-
-model Payment {
-  id                 String        @id @default(cuid())
+model GuideSubscription {
+  id                 String                  @id @default(cuid())
   user_id            String
-  amount             Int           // en XOF entier — jamais Float pour des montants
-  currency           String        @default("XOF")
-  psp                String        // "cinetpay" | "notchpay"
-  psp_transaction_id String?       @unique
-  status             PaymentStatus @default(PENDING)
-  created_at         DateTime      @default(now())
-  updated_at         DateTime      @updatedAt
-
-  user            User            @relation(fields: [user_id], references: [id])
-  purchase_access PurchaseAccess?
+  plan               GuidePlan               // MONTHLY | ANNUAL
+  status             GuideSubscriptionStatus @default(ACTIVE)
+  current_period_end DateTime
+  lemon_order_id     String?                 // référence Chariow order
+  created_at         DateTime                @default(now())
+  updated_at         DateTime                @updatedAt
 }
 
-model PurchaseAccess {
-  id         String   @id @default(cuid())
+model CheckoutSession {
+  id         String         @id @default(cuid())
   user_id    String
-  payment_id String   @unique
-  score_id   String
-  expires_at DateTime  // now() + 6 mois — jamais null
-  created_at DateTime @default(now())
-
-  user          User             @relation(fields: [user_id], references: [id])
-  payment       Payment          @relation(fields: [payment_id], references: [id])
-  profile_score UserProfileScore @relation(fields: [score_id], references: [id])
+  plan       GuidePlan
+  token      String         @unique @default(uuid())
+  status     CheckoutStatus @default(PENDING)  // PENDING | COMPLETED | EXPIRED
+  expires_at DateTime       // now() + 1h
+  created_at DateTime       @default(now())
 }
 
-enum PaymentStatus {
-  PENDING
-  SUCCESS
-  FAILED
-  REFUNDED
+model SavedOpportunity {
+  id             String   @id @default(cuid())
+  user_id        String
+  opportunity_id String   // ID Payload CMS — pas de FK (ORM séparé)
+  saved_at       DateTime @default(now())
+
+  deadline_alert_preference DeadlineAlertPreference?
+}
+
+model DeadlineAlertPreference {
+  id             String   @id @default(cuid())
+  user_id        String
+  opportunity_id String
+  alert_90d      Boolean  @default(true)
+  alert_30d      Boolean  @default(true)
+  alert_7d       Boolean  @default(true)
+  saved_opp_id   String   @unique
+
+  sent_alerts    SentDeadlineAlert[]
+
+  @@unique([user_id, opportunity_id])
+}
+
+model SentDeadlineAlert {
+  id          String   @id @default(cuid())
+  pref_id     String
+  days_before Int      // 90, 30 ou 7
+  sent_at     DateTime @default(now())
+
+  @@unique([pref_id, days_before])  // idempotence — une alerte par fenêtre
 }
 ```
+
+### Tables Payload CMS (Drizzle — gérées automatiquement)
+- `opportunities` — catalogue complet (149+ enregistrements au 2026-04-28)
+- `admin_users` — comptes back-office
+- `payload_preferences`, `payload_migrations` — internes Payload
+
+### Chronologie des migrations
+
+| Migration | Date | Contenu |
+|---|---|---|
+| `20260421000001_add_coaching_bookings` | 2026-04-21 | `CoachingBooking` |
+| `20260426000000_add_guide_subscription` | 2026-04-26 | `GuideSubscription`, enums `GuidePlan`/`GuideSubscriptionStatus` |
+| `20260426100000_add_waitlist_entry` | 2026-04-26 | `WaitlistEntry` |
+| `20260426110000_add_welcome_sent` | 2026-04-26 | `User.welcome_sent` |
+| `20260426120000_add_saved_opportunities` | 2026-04-26 | `SavedOpportunity` |
+| `20260428000000_add_checkout_deadline_alerts` | 2026-04-28 | `CheckoutSession`, `DeadlineAlertPreference`, `SentDeadlineAlert` |
 
 ---
 
@@ -476,24 +485,40 @@ kraak/
 │   │   │   ├── page.tsx                    # Landing page
 │   │   │   ├── test/page.tsx               # Questionnaire (anonyme)
 │   │   │   └── auth/
-│   │   │       ├── register/page.tsx       # Création compte (post-test)
-│   │   │       ├── login/page.tsx
-│   │   │       └── reset/page.tsx
+│   │   │       ├── register/page.tsx
+│   │   │       └── login/page.tsx
+│   │   │   ├── coaching/page.tsx            # Offres coaching + liens Chariow
+│   │   │   ├── guide/
+│   │   │   │   ├── page.tsx                # Guide Premium (modules + gate accès)
+│   │   │   │   └── success/page.tsx         # Retour post-paiement Chariow ✅
+│   │   │   ├── guide-premium/page.tsx       # Page de présentation + tunnel souscription
+│   │   │   ├── results/page.tsx
+│   │   │   ├── catalog/page.tsx             # Catalogue élargi (abonnés)
+│   │   │   ├── confidentialite/page.tsx     # Politique de confidentialité ✅
+│   │   │   ├── conditions/page.tsx          # CGU ✅
+│   │   │   └── contact/page.tsx             # Page contact ✅
 │   │   ├── (protected)/                    # Middleware vérifie JWT Supabase
-│   │   │   ├── results/page.tsx            # Résultats partiels + paywall
-│   │   │   ├── results/[scoreId]/page.tsx  # Résultats complets (vérifie PurchaseAccess)
+│   │   │   ├── results/page.tsx            # 5 recommandations + coaching upsell
 │   │   │   └── dashboard/page.tsx
 │   │   ├── (payload)/                      # Payload gère son propre middleware
 │   │   │   └── admin/[[...segments]]/page.tsx
 │   │   └── api/
 │   │       ├── scoring/route.ts
 │   │       ├── matching/route.ts
-│   │       ├── payment/
-│   │       │   ├── initiate/route.ts
-│   │       │   ├── revoke/route.ts         # Révocation accès (admin uniquement)
-│   │       │   └── webhooks/
-│   │       │       └── cinetpay/route.ts   # Idempotence intégrée
-│   │       └── [...payload]/route.ts
+│   │       ├── countries/route.ts
+│   │       ├── checkout/
+│   │       │   ├── initiate/route.ts       # POST — CheckoutSession + URL Chariow ✅
+│   │       │   └── verify/route.ts         # GET — active GuideSubscription ✅
+│   │       ├── user/
+│   │       │   ├── alerts/route.ts
+│   │       │   ├── guide-access/route.ts
+│   │       │   └── saved/route.ts
+│   │       ├── cron/
+│   │       │   ├── send-alerts/route.ts    # Alertes profil hebdo (lundi 8h)
+│   │       │   └── deadline-alerts/route.ts # Deadlines 90/30/7j (quotidien 7h) ✅
+│   │       ├── webhooks/
+│   │       │   └── chariow/route.ts        # Stub Phase 3 — HMAC prête ✅
+│   │       └── [...slug]/route.ts          # API Payload CMS
 │   │
 │   ├── domain/
 │   │   ├── scoring/
@@ -502,38 +527,47 @@ kraak/
 │   │   │   └── scorer.test.ts
 │   │   └── matching/
 │   │       ├── matcher.ts
-│   │       └── matcher.test.ts
+│   │       └── matcher.test.ts             # 57 tests unitaires
 │   │
 │   ├── collections/
 │   │   ├── Opportunities.ts
 │   │   ├── AdminUsers.ts
 │   │   └── index.ts
 │   │
+│   ├── data/
+│   │   ├── questions.ts
+│   │   └── seed-opportunities.ts
+│   │
 │   ├── lib/
 │   │   ├── supabase/         # Clients Supabase (server + browser)
 │   │   ├── prisma/           # Singleton Prisma client
-│   │   ├── cinetpay/         # Wrapper CinetPay (initiate, verify HMAC)
+│   │   ├── guide.ts          # hasGuideAccess() + extractPreview()
+│   │   ├── opportunities.ts  # fetchOpportunities() + normalisation
 │   │   ├── upstash/          # Rate limiting
-│   │   └── posthog/          # Analytics (server + client)
+│   │   └── posthog/          # Analytics
 │   │
-│   ├── middleware.ts          # Séparation JWT Supabase / Payload
+│   ├── middleware.ts
 │   │
 │   └── components/
 │       ├── ui/               # shadcn/ui
 │       └── features/
-│           ├── test/
-│           ├── results/
-│           └── paywall/
+│           ├── landing/      # Navbar, Footer, CtaSection
+│           ├── auth/         # RegisterForm
+│           ├── profile/      # ProfileClient
+│           ├── results/      # RecommendationCard, OpportunityDetailModal…
+│           └── test/         # CountrySelectCard
 │
 ├── scripts/
-│   └── import-opportunities.ts
+│   └── import-opportunities.js
 │
 ├── prisma/
-│   └── schema.prisma
+│   ├── schema.prisma
+│   └── migrations/           # 9 migrations au 2026-04-28
 │
-├── e2e/                       # Tests Playwright
-│   └── user-journey.spec.ts
+├── tests/e2e/
+│   └── test-profile.spec.ts
 │
+├── vercel.json               # Cron : send-alerts (lundi 8h) + deadline-alerts (quotidien 7h) ✅
 ├── payload.config.ts
 ├── next.config.ts
 ├── tailwind.config.ts
@@ -558,10 +592,26 @@ PAYLOAD_SECRET=                   # chaîne aléatoire longue pour signer les se
 # Base de données (Prisma)
 DATABASE_URL=                     # URL PostgreSQL Supabase (avec pooler pour production)
 
-# CinetPay
-CINETPAY_API_KEY=
-CINETPAY_SITE_ID=
-CINETPAY_WEBHOOK_SECRET=          # pour vérifier la signature HMAC des webhooks
+# Chariow — Paiement Guide Premium & Coaching
+# URLs à récupérer depuis le dashboard Chariow > page produit de chaque offre
+NEXT_PUBLIC_CHARIOW_GUIDE_MONTHLY_URL=       # Guide mensuel (2 500 XOF/mois)
+NEXT_PUBLIC_CHARIOW_GUIDE_ANNUAL_URL=        # Guide annuel (19 900 XOF/an)
+NEXT_PUBLIC_CHARIOW_COACHING_AUDIT_URL=      # Coaching audit (15 000 XOF)
+NEXT_PUBLIC_CHARIOW_COACHING_ACCOMPAGNEMENT_URL=  # Coaching complet (50 000 XOF)
+
+# Chariow — Phase 3 (webhooks natifs)
+# CHARIOW_WEBHOOK_SECRET=                    # Secret HMAC pour validation des webhooks
+# CHARIOW_PRODUCT_GUIDE_MONTHLY_ID=          # ID produit Guide mensuel
+# CHARIOW_PRODUCT_GUIDE_ANNUAL_ID=           # ID produit Guide annuel
+
+# Application
+NEXT_PUBLIC_APP_URL=https://kraak.co         # URL publique (sans slash final)
+CRON_SECRET=                                 # Secret partagé pour sécuriser les endpoints cron Vercel
+
+# CinetPay — Paiement natif (Phase 3, non implémenté)
+# CINETPAY_API_KEY=
+# CINETPAY_SITE_ID=
+# CINETPAY_WEBHOOK_SECRET=
 
 # Upstash (rate limiting)
 UPSTASH_REDIS_REST_URL=
@@ -593,15 +643,14 @@ NODE_ENV=                         # development | staging | production
 | XSS | CSP headers Next.js + échappement React natif |
 | CSRF | Cookies `SameSite=Strict` + tokens sur mutations |
 | Injection SQL | Prisma (requêtes paramétrées) + Drizzle (Payload) |
-| Brute force | Rate limiting Upstash sur `/auth/**` et `/api/payment/**` |
-| Secrets exposés | Variables d'env Vercel — jamais dans le bundle client |
+| Brute force | Rate limiting Upstash sur `/auth/**` |
+| Secrets exposés | URLs Chariow en `NEXT_PUBLIC_` (non sensibles) — clés backend jamais dans le bundle |
 | Confusion auth Payload/Supabase | Middleware séparé selon la route (voir section 3.4) |
-| Webhook spoofing | Vérification signature HMAC CinetPay côté serveur |
-| Double traitement webhook | Contrôle idempotence sur `psp_transaction_id` |
 | IDOR | `user_id` extrait du JWT serveur, jamais du body de la requête |
-| Accès expiré | `expires_at > now()` vérifié côté serveur à chaque accès à `/results/[scoreId]` |
-| Révocation frauduleuse | `/api/payment/revoke` réservé aux `AdminUser` Payload (token vérifié) |
-| Arrondi monétaire | Montants stockés en `Int` XOF entier — pas de `Float` |
+| Suppression données (RGPD) | Soft delete `User.deleted_at` + anonymisation email |
+| Arrondi monétaire (Phase 3) | Montants stockés en `Int` XOF entier — pas de `Float` |
+| Webhook spoofing Chariow (Phase 3) | Stub `POST /api/webhooks/chariow` avec validation HMAC prête — activé Phase 3 |
+| Token checkout rejouable | `CheckoutSession` à usage unique (PENDING→COMPLETED) + TTL 1h |
 | Suppression données (RGPD) | Soft delete `User.deleted_at` + anonymisation email |
 
 ---
@@ -616,7 +665,8 @@ NODE_ENV=                         # development | staging | production
 | Sentry | 5K errors/mois | Team : 26$/mois |
 | Resend | 3K emails/mois | Pro : 20$/mois |
 | Upstash | 10K requêtes/jour | Pay-as-you-go |
-| CinetPay | — | ~2–3% par transaction |
+| Chariow | — | Commission selon plan (voir dashboard) |
+| CinetPay (Phase 3) | — | ~2–3% par transaction |
 | **Total MVP** | **~0 $/mois** | **< 100 $/mois si traction** |
 
 ---
@@ -642,11 +692,11 @@ Les étapes 2 et 3 (questionnaire + auth) sont fusionnées car indissociables : 
   ├── Rattachement TestResponse → User + scoring au submit
   └── /results (aperçu partiel + paywall)
 
-Étape 3 — Monétisation (semaines 5–6)
-  ├── Intégration CinetPay (sandbox CinetPay + staging Supabase)
-  ├── Webhook + idempotence
-  ├── PurchaseAccess + vérification expiration
-  └── /results/[scoreId] (accès complet)
+Étape 3 — Monétisation MVP (semaines 5–6)
+  ├── Guide Premium : 9 modules MDX + gate server-side (GuideSubscription)
+  ├── Coaching : pages offres + liens Chariow par offre
+  ├── Intégration Chariow : 4 variables NEXT_PUBLIC_CHARIOW_* dans .env.local
+  └── Upsells : CoachingUpsell + GuideCard dans ResultsClient
 
 Étape 4 — Expérience complète (semaine 7)
   ├── Dashboard utilisateur
@@ -675,12 +725,15 @@ Les étapes 2 et 3 (questionnaire + auth) sont fusionnées car indissociables : 
 | Supabase Auth pour les users | Auth complète sans code côté app |
 | Middleware séparé Payload/Supabase | Évite toute confusion entre les deux systèmes JWT |
 | localStorage (pas sessionStorage) | Survit aux interruptions mobiles fréquentes en Afrique |
-| score_id via cookie HttpOnly | Transmission sécurisée entre scoring et page résultats |
-| Idempotence webhook obligatoire | CinetPay peut rejouer un webhook — un seul traitement autorisé |
-| Montants en Int XOF | Float interdit sur les montants financiers (arrondi) |
-| Remboursement CinetPay manuel | CinetPay ne supporte pas le remboursement API sur tous les opérateurs |
+| Accès résultats entièrement gratuit | Pivot MVP : maximiser acquisition avant monétisation coaching |
+| Chariow pour le paiement MVP | Zéro intégration backend : liens produit hébergés, aucun webhook à gérer, time-to-market immédiat |
+| CinetPay repoussé Phase 3 | Valider les volumes et la demande avant d'investir dans une intégration PSP native |
+| Zones géographiques continentales | Un étudiant ne doit pas être bloqué par son pays d'origine ; zone = destination |
+| Catégories : bourse/programme/fellowship/concours/prix | Exclure stage/emploi classiques — catalogue orienté mobilité académique et distinctions |
+| Budget caps (petit=500k, moyen=2M XOF) | Alignés sur les labels affichés dans le questionnaire |
+| Bypass multidisciplinaire | Opportunités ouvertes à tous les domaines ne doivent pas être exclues par le filtre domaine |
+| Fallback seed si DB < 10 | Garantit un résultat utilisateur même si le catalogue Payload est vide |
 | PostHog seule source analytics | Évite la duplication avec une table AnalyticsEvent en base |
 | Soft delete sur User | Intégrité référentielle préservée lors d'une suppression RGPD |
 | Vitest + Playwright | Standards Next.js pour les tests unitaires et E2E |
-| 3 environnements (dev/staging/prod) | Requis par le PRD — staging avec CinetPay sandbox |
 | Migration Payload avant Prisma | Protocole obligatoire — évite les conflits de verrous PostgreSQL |

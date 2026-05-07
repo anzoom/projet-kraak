@@ -6,7 +6,7 @@ const steps = [
     icon: ClipboardList,
     title: "Réponds à 10 questions",
     description:
-      "Niveau, objectif, domaine, budget… Un questionnaire simple conçu pour cerner ton profil en moins de 2 minutes.",
+      "Niveau, objectif, domaine, budget… Un questionnaire simple conçu pour cerner ton profil en moins d'une minute.",
   },
   {
     number: "02",

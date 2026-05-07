@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 
 const DAY_NAMES_LONG = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]
@@ -33,7 +33,7 @@ const STATUS_STYLE: Record<string, string> = {
   CANCELLED: "bg-gray-100 text-gray-400 border border-gray-200",
 }
 
-export default function AdminCoachingPage() {
+function AdminCoachingContent() {
   const searchParams = useSearchParams()
   const secret = searchParams.get("secret") ?? ""
 
@@ -98,13 +98,14 @@ export default function AdminCoachingPage() {
   const ordered = [...pending, ...confirmed, ...cancelled]
 
   return (
-    <div className="min-h-screen bg-slate-light">
-      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
-        <span className="text-sm font-black text-slate-dark tracking-tight">KRAAK — Coaching admin</span>
-        <span className="text-xs text-slate-mid">{pending.length} en attente</span>
-      </header>
-
+    <div className="bg-slate-light">
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold text-slate-mid uppercase tracking-wider">Coaching admin</p>
+          {pending.length > 0 && (
+            <span className="text-xs font-semibold text-primary">{pending.length} en attente</span>
+          )}
+        </div>
         {ordered.length === 0 && (
           <p className="text-center text-slate-mid text-sm py-12">Aucune réservation pour le moment.</p>
         )}
@@ -156,5 +157,13 @@ export default function AdminCoachingPage() {
         ))}
       </main>
     </div>
+  )
+}
+
+export default function AdminCoachingPage() {
+  return (
+    <Suspense>
+      <AdminCoachingContent />
+    </Suspense>
   )
 }

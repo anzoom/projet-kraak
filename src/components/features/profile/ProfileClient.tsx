@@ -20,6 +20,8 @@ export default function ProfileClient({ email }: Props) {
   const [signingOut, setSigningOut] = useState(false)
   const [alertsEnabled, setAlertsEnabled] = useState(false)
   const [savingAlerts, setSavingAlerts] = useState(false)
+  const [guideAccess, setGuideAccess] = useState<{ hasAccess: boolean; plan?: string; expiresAt?: string } | null>(null)
+  const [savedCount, setSavedCount] = useState<number | null>(null)
 
   useEffect(() => {
     setIsMounted(true)
@@ -47,6 +49,24 @@ export default function ProfileClient({ email }: Props) {
         if (typeof data.alerts_enabled === "boolean") {
           setAlertsEnabled(data.alerts_enabled)
         }
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/user/guide-access")
+      .then((r) => r.json())
+      .then((data: { hasAccess: boolean; plan?: string; expiresAt?: string }) => {
+        setGuideAccess(data)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/user/saved")
+      .then((r) => r.json())
+      .then((data: { savedIds?: string[]; premium?: boolean }) => {
+        if (data.premium) setSavedCount(data.savedIds?.length ?? 0)
       })
       .catch(() => {})
   }, [])
@@ -86,8 +106,8 @@ export default function ProfileClient({ email }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-light">
-      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between">
+    <div className="bg-slate-light">
+      <main className="max-w-lg mx-auto px-4 py-8 space-y-5">
         <Link
           href="/results"
           className="inline-flex items-center gap-2 text-sm text-slate-mid hover:text-slate-dark transition-colors"
@@ -95,10 +115,6 @@ export default function ProfileClient({ email }: Props) {
           <ArrowLeft className="w-4 h-4" />
           Mes résultats
         </Link>
-        <span className="text-sm font-black text-slate-dark tracking-tight">KRAAK</span>
-      </header>
-
-      <main className="max-w-lg mx-auto px-4 py-8 space-y-5">
 
         {/* Compte */}
         <div className="bg-white rounded-2xl border-2 border-gray-100 p-5 space-y-4">
@@ -107,26 +123,80 @@ export default function ProfileClient({ email }: Props) {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-slate-dark">Alertes email</p>
-              <p className="text-xs text-slate-mid">Recevoir les nouvelles opportunités par email</p>
+              {guideAccess?.hasAccess ? (
+                <p className="text-xs text-slate-mid">
+                  Alertes sur tes opportunités sauvegardées
+                  {savedCount !== null && (
+                    <span className="ml-1 font-semibold text-primary">({savedCount}/15)</span>
+                  )}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-mid">
+                  Disponible avec le{" "}
+                  <Link href="/guide-premium" className="text-primary font-semibold hover:underline">
+                    Guide Premium
+                  </Link>
+                </p>
+              )}
             </div>
             <button
               onClick={handleToggleAlerts}
-              disabled={savingAlerts}
+              disabled={savingAlerts || !guideAccess?.hasAccess}
               aria-label="Toggle alertes email"
+              title={!guideAccess?.hasAccess ? "Guide Premium requis" : undefined}
               className={[
                 "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-50",
-                alertsEnabled ? "bg-primary" : "bg-gray-200",
+                alertsEnabled && guideAccess?.hasAccess ? "bg-primary" : "bg-gray-200",
               ].join(" ")}
             >
               <span
                 className={[
                   "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform",
-                  alertsEnabled ? "translate-x-5" : "translate-x-0",
+                  alertsEnabled && guideAccess?.hasAccess ? "translate-x-5" : "translate-x-0",
                 ].join(" ")}
               />
             </button>
           </div>
         </div>
+
+        {/* Guide Premium */}
+        {guideAccess !== null && (
+          <div className="bg-white rounded-2xl border-2 border-gray-100 p-5">
+            <h2 className="text-xs font-bold text-slate-mid uppercase tracking-wider mb-3">Guide Premium</h2>
+            {guideAccess.hasAccess ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center h-5 px-2 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Actif</span>
+                  <span className="text-xs text-slate-mid">
+                    {guideAccess.plan === "ANNUAL" ? "Plan annuel" : "Plan mensuel"}
+                  </span>
+                </div>
+                {guideAccess.expiresAt && (
+                  <p className="text-xs text-slate-mid">
+                    Accès jusqu'au{" "}
+                    {new Date(guideAccess.expiresAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                )}
+                <Link
+                  href="/guide"
+                  className="inline-flex items-center gap-1 text-xs text-primary font-semibold hover:underline"
+                >
+                  Lire le guide →
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-slate-mid">Aucun abonnement actif.</p>
+                <Link
+                  href="/guide-premium"
+                  className="inline-flex items-center gap-1 text-xs text-primary font-semibold hover:underline"
+                >
+                  Découvrir le Guide Premium →
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Réponses du test */}
         <div className="bg-white rounded-2xl border-2 border-gray-100 p-5">

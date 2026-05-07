@@ -296,16 +296,16 @@ describe("Filtre — matching hiérarchique (pays précis ↔ zone)", () => {
 // ── Filtre — budget ───────────────────────────────────────────────────────────
 
 describe("Filtre — budget", () => {
-  it("inclut si budget_required est null (pas de frais renseignés)", () => {
+  it("inclut si budget_required est null et funding=complete (aucun frais requis)", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ budget_required: null })],
+      opportunities: [makeOpp({ budget_required: null, funding_type: "complete" })],
       answers: { ...baseAnswers, budget: "zero" },
     })
     expect(matchOpportunities(input)).toHaveLength(1)
   })
-  it("inclut si budget_required = 0 et budget = zero", () => {
+  it("inclut si budget_required = 0 et funding=complete et budget=zero", () => {
     const input = makeInput({
-      opportunities: [makeOpp({ budget_required: 0 })],
+      opportunities: [makeOpp({ budget_required: 0, funding_type: "complete" })],
       answers: { ...baseAnswers, budget: "zero" },
     })
     expect(matchOpportunities(input)).toHaveLength(1)
@@ -412,27 +412,27 @@ describe("Scoring — bonus", () => {
     const result = matchOpportunities(makeInput())
     expect(result[0].match_score).toBeGreaterThanOrEqual(30)
   })
-  it("+25 domaine (toujours si domaine renseigné)", () => {
+  it("+20 domaine (toujours si domaine renseigné)", () => {
     const result = matchOpportunities(makeInput())
-    expect(result[0].match_score).toBeGreaterThanOrEqual(55)
+    expect(result[0].match_score).toBeGreaterThanOrEqual(50)
   })
   it("+20 pays (toujours pour cible spécifique)", () => {
     const result = matchOpportunities(makeInput())
-    expect(result[0].match_score).toBeGreaterThanOrEqual(75)
+    expect(result[0].match_score).toBeGreaterThanOrEqual(70)
   })
-  it("+15 financement complet si budget=zero", () => {
+  it("+20 financement complet si budget=zero (priorité africaine)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ funding_type: "complete", budget_required: 0 })],
       answers: { ...baseAnswers, budget: "zero" },
     })
     const result = matchOpportunities(input)
-    expect(result[0].match_score).toBe(30 + 25 + 20 + 15)
+    expect(result[0].match_score).toBe(30 + 20 + 20 + 20)
   })
   it("+10 deadline dans 90 jours", () => {
     const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     const input = makeInput({ opportunities: [makeOpp({ deadline: soon })] })
     const result = matchOpportunities(input)
-    expect(result[0].match_score).toBe(30 + 25 + 20 + 10)
+    expect(result[0].match_score).toBe(30 + 20 + 20 + 10)
   })
   it("score maximum : tous les bonus", () => {
     const soon = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
@@ -441,7 +441,7 @@ describe("Scoring — bonus", () => {
       answers: { ...baseAnswers, budget: "zero" },
     })
     const result = matchOpportunities(input)
-    expect(result[0].match_score).toBe(30 + 25 + 20 + 15 + 10)
+    expect(result[0].match_score).toBe(30 + 20 + 20 + 20 + 10)
   })
   it("pas de bonus pays pour peu_importe sans financement complet", () => {
     const input = makeInput({
@@ -449,21 +449,21 @@ describe("Scoring — bonus", () => {
       answers: { ...baseAnswers, target_country: "peu_importe" },
     })
     const result = matchOpportunities(input)
-    expect(result[0].match_score).toBe(30 + 25)
+    expect(result[0].match_score).toBe(30 + 20)
   })
 })
 
 describe("Tri — précision pays prioritaire sur le score brut", () => {
   it("un exact match de score inférieur prime sur une zone de score supérieur", () => {
-    // Cas réel : opp zone Europe avec financement complet (score 80)
-    // vs opp France exact sans financement complet (score 75)
-    // → France doit être #1 car l'utilisateur a explicitement choisi France
+    // Cas réel : opp zone Europe avec financement complet (score 68)
+    // vs opp France exact sans financement complet (score 70)
+    // → France doit être #1 car l'utilisateur a explicitement choisi France (rang pays prioritaire)
     const input = makeInput({
       opportunities: [
         makeOpp({ id: "zone-complete", country: "europe",  funding_type: "complete", budget_required: 0 }),
         makeOpp({ id: "exact-partial", country: "france",  funding_type: "partial" }),
       ],
-      answers: { ...baseAnswers, target_country: "france", budget: "zero" },
+      answers: { ...baseAnswers, target_country: "france", budget: "petit" },
     })
     const result = matchOpportunities(input)
     expect(result[0].opportunity.id).toBe("exact-partial")   // France exact #1
@@ -476,7 +476,7 @@ describe("Tri — précision pays prioritaire sur le score brut", () => {
         makeOpp({ id: "zone-max",   country: "europe",   funding_type: "complete", deadline: soon, budget_required: 0 }),
         makeOpp({ id: "exact-base", country: "belgique", funding_type: "partial",  deadline: null }),
       ],
-      answers: { ...baseAnswers, target_country: "belgique", budget: "zero" },
+      answers: { ...baseAnswers, target_country: "belgique", budget: "petit" },
     })
     const result = matchOpportunities(input)
     expect(result[0].opportunity.id).toBe("exact-base")  // Belgique exact #1
@@ -489,7 +489,7 @@ describe("Tri — précision pays prioritaire sur le score brut", () => {
         makeOpp({ id: "intl-max",   country: "international", funding_type: "complete", deadline: soon, budget_required: 0 }),
         makeOpp({ id: "exact-base", country: "france",        funding_type: "partial" }),
       ],
-      answers: { ...baseAnswers, target_country: "france", budget: "zero" },
+      answers: { ...baseAnswers, target_country: "france", budget: "petit" },
     })
     const result = matchOpportunities(input)
     expect(result[0].opportunity.id).toBe("exact-base")  // France exact #1
@@ -501,11 +501,11 @@ describe("Tri — précision pays prioritaire sur le score brut", () => {
         makeOpp({ id: "fr-partial",  country: "france", funding_type: "partial" }),
         makeOpp({ id: "fr-complete", country: "france", funding_type: "complete", budget_required: 0 }),
       ],
-      answers: { ...baseAnswers, target_country: "france", budget: "zero" },
+      answers: { ...baseAnswers, target_country: "france", budget: "petit" },
     })
     const result = matchOpportunities(input)
-    expect(result[0].opportunity.id).toBe("fr-complete")  // score supérieur (75+15=90)
-    expect(result[1].opportunity.id).toBe("fr-partial")   // score inférieur (75)
+    expect(result[0].opportunity.id).toBe("fr-complete")  // score supérieur (70+10=80)
+    expect(result[1].opportunity.id).toBe("fr-partial")   // score inférieur (70)
   })
   it("peu_importe : classement par score brut uniquement (pas de rang pays)", () => {
     const input = makeInput({
@@ -513,10 +513,10 @@ describe("Tri — précision pays prioritaire sur le score brut", () => {
         makeOpp({ id: "any-partial",  funding_type: "partial" }),
         makeOpp({ id: "any-complete", funding_type: "complete", budget_required: 0 }),
       ],
-      answers: { ...baseAnswers, target_country: "peu_importe", budget: "zero" },
+      answers: { ...baseAnswers, target_country: "peu_importe", budget: "petit" },
     })
     const result = matchOpportunities(input)
-    expect(result[0].opportunity.id).toBe("any-complete")  // score 90 > 55
+    expect(result[0].opportunity.id).toBe("any-complete")  // score 80 > 50
   })
 })
 
@@ -632,34 +632,34 @@ describe("Filtre — timeline 'court' et opportunités expirées", () => {
 
 // ── Scoring — valeurs exactes du bonus pays ──────────────────────────────────
 
-describe("Scoring — bonus pays : valeurs exactes (exact +20 / zone +10 / international +5)", () => {
-  it("exact match pays → score = 75 (30+25+20)", () => {
+describe("Scoring — bonus pays : valeurs exactes (exact +20 / zone +8 / international +5)", () => {
+  it("exact match pays → score = 70 (30+20+20)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ country: "france" })],
       answers: { ...baseAnswers, target_country: "france" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 20)
   })
-  it("zone fallback (target=france, opp=europe) → score = 65 (30+25+10)", () => {
+  it("zone fallback (target=france, opp=europe) → score = 58 (30+20+8)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ country: "europe" })],
       answers: { ...baseAnswers, target_country: "france" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 10)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 8)
   })
-  it("international (target=france, opp=international) → score = 60 (30+25+5)", () => {
+  it("international (target=france, opp=international) → score = 55 (30+20+5)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ country: "international" })],
       answers: { ...baseAnswers, target_country: "france" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 5)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 5)
   })
-  it("pays dans la zone cible (target=europe, opp=france) → score = 75 (30+25+20, pas +10)", () => {
+  it("pays dans la zone cible (target=europe, opp=france) → score = 70 (30+20+20)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ country: "france" })],
       answers: { ...baseAnswers, target_country: "europe" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 20)
   })
   it("classement correct : pays exact > zone > international", () => {
     const input = makeInput({
@@ -675,45 +675,83 @@ describe("Scoring — bonus pays : valeurs exactes (exact +20 / zone +10 / inter
     expect(result[1].opportunity.id).toBe("zone")
     expect(result[2].opportunity.id).toBe("intl")
   })
-  it("peu_importe + financement complet → bonus pays +20 (score = 90 avec budget=zero)", () => {
+  it("peu_importe + financement complet → bonus pays +20 et funding +20 (score = 90 avec budget=zero)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ funding_type: "complete", budget_required: 0 })],
       answers: { ...baseAnswers, target_country: "peu_importe", budget: "zero" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20 + 15)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 20 + 20)
   })
-  it("peu_importe + financement partiel → pas de bonus pays (score = 55)", () => {
+  it("peu_importe + financement partiel → pas de bonus pays (score = 50)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ funding_type: "partial" })],
       answers: { ...baseAnswers, target_country: "peu_importe" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20)
   })
 })
 
 // ── Scoring — bonus financement complet conditionnel ─────────────────────────
 
-describe("Scoring — bonus financement complet (uniquement si budget=zero)", () => {
-  it("funding=complete + budget=zero → +15 (score = 90)", () => {
+describe("Scoring — bonus financement complet (deux niveaux selon budget)", () => {
+  it("funding=complete + budget=zero → +20 priorité africaine (score = 90)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ funding_type: "complete", budget_required: 0 })],
       answers: { ...baseAnswers, budget: "zero" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20 + 15)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 20 + 20)
   })
-  it("funding=complete + budget=petit → pas de +15 (score = 75)", () => {
+  it("funding=complete + budget=petit → +10 bonus même sans contrainte (score = 80)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ funding_type: "complete" })],
       answers: { ...baseAnswers, budget: "petit" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 20 + 10)
   })
-  it("funding=partial + budget=zero → pas de +15 (score = 75)", () => {
+  it("funding=partial + budget=zero → exclu par filtre 7bis (0 résultats)", () => {
     const input = makeInput({
       opportunities: [makeOpp({ funding_type: "partial", budget_required: 0 })],
       answers: { ...baseAnswers, budget: "zero" },
     })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20)
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+})
+
+// ── Filtre 7bis — budget=zero exclut les oppos non entièrement financées ─────
+
+describe("Filtre 7bis — budget=zero → uniquement funding_type=complete", () => {
+  it("exclut une opportunité partial quand budget=zero", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ funding_type: "partial" })],
+      answers: { ...baseAnswers, budget: "zero" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(0)
+  })
+  it("inclut une opportunité complete quand budget=zero", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ funding_type: "complete", budget_required: 0 })],
+      answers: { ...baseAnswers, budget: "zero" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("n'applique pas le filtre si budget != zero (partial visible avec budget=petit)", () => {
+    const input = makeInput({
+      opportunities: [makeOpp({ funding_type: "partial" })],
+      answers: { ...baseAnswers, budget: "petit" },
+    })
+    expect(matchOpportunities(input)).toHaveLength(1)
+  })
+  it("bonus +20 pour funding=complete + budget=zero, +10 pour budget=petit", () => {
+    const inputZero = makeInput({
+      opportunities: [makeOpp({ funding_type: "complete", budget_required: 0 })],
+      answers: { ...baseAnswers, budget: "zero" },
+    })
+    const inputPetit = makeInput({
+      opportunities: [makeOpp({ funding_type: "complete" })],
+      answers: { ...baseAnswers, budget: "petit" },
+    })
+    expect(matchOpportunities(inputZero)[0].match_score).toBe(30 + 20 + 20 + 20)
+    expect(matchOpportunities(inputPetit)[0].match_score).toBe(30 + 20 + 20 + 10)
   })
 })
 
@@ -724,15 +762,15 @@ describe("Scoring — deadline soon (borne des 90 jours)", () => {
 
   it("deadline dans 89 jours → +10 (dans la fenêtre)", () => {
     const input = makeInput({ opportunities: [makeOpp({ deadline: daysFromNow(89) })] })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20 + 10)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 20 + 10)
   })
   it("deadline dans 91 jours → pas de +10 (hors fenêtre)", () => {
     const input = makeInput({ opportunities: [makeOpp({ deadline: daysFromNow(91) })] })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 20)
   })
   it("deadline null → pas de +10", () => {
     const input = makeInput({ opportunities: [makeOpp({ deadline: null })] })
-    expect(matchOpportunities(input)[0].match_score).toBe(30 + 25 + 20)
+    expect(matchOpportunities(input)[0].match_score).toBe(30 + 20 + 20)
   })
 })
 
@@ -771,7 +809,7 @@ describe("Ordering — actives avant expirées et champ isExpired", () => {
         makeOpp({ id: "exp-low",  deadline: "2020-01-01", funding_type: "partial" }),
         makeOpp({ id: "exp-high", deadline: "2020-01-01", funding_type: "complete", budget_required: 0 }),
       ],
-      answers: { ...baseAnswers, timeline: "long", budget: "zero" },
+      answers: { ...baseAnswers, timeline: "long", budget: "petit" },
     })
     const expired = matchOpportunities(input).filter((r) => r.isExpired)
     expect(expired[0].opportunity.id).toBe("exp-high")
@@ -905,10 +943,11 @@ describe("countZoneFallbacks", () => {
   function makeRec(country: string): Recommendation {
     return {
       opportunity: makeOpp({ country }),
-      match_score: 75,
+      match_score: 70,
       justification: "test",
       badge: null,
       isExpired: false,
+      feasibility: { financial: "ok", academic: "ok", temporal: "confortable" },
     }
   }
 
@@ -950,7 +989,7 @@ describe("Scénario régression — Belgique (bac3 requis, utilisateur master)",
     })
     expect(matchOpportunities(input)).toHaveLength(1)
   })
-  it("classement correct : belgique (75) > europe (65) > international (60)", () => {
+  it("classement correct : belgique (70) > europe (58) > international (55)", () => {
     const input = makeInput({
       opportunities: [
         makeOpp({ id: "intl", country: "international", study_level: "tous" }),
@@ -977,9 +1016,9 @@ describe("Scénario régression — Belgique (bac3 requis, utilisateur master)",
     const beScore   = result.find((r) => r.opportunity.id === "be")!.match_score
     const euScore   = result.find((r) => r.opportunity.id === "eu")!.match_score
     const intlScore = result.find((r) => r.opportunity.id === "intl")!.match_score
-    expect(beScore).toBe(30 + 25 + 20)   // 75
-    expect(euScore).toBe(30 + 25 + 10)   // 65
-    expect(intlScore).toBe(30 + 25 + 5)  // 60
+    expect(beScore).toBe(30 + 20 + 20)   // 70
+    expect(euScore).toBe(30 + 20 + 8)   // 58
+    expect(intlScore).toBe(30 + 20 + 5)  // 55
   })
   it("la France n'apparaît pas dans une recherche Belgique (pays distincts)", () => {
     const input = makeInput({

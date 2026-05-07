@@ -12,46 +12,28 @@ export default function PaywallSection({ locked, totalCount, isAuthenticated = f
 
   return (
     <div className="w-full">
-      {isAuthenticated ? (
-        // Utilisateur connecté sans accès complet
-        <div className="bg-gradient-to-br from-primary-light to-orange-50 rounded-2xl border-2 border-orange-200 p-6 text-center">
-          <p className="text-2xl mb-2">✨</p>
-          <h3 className="text-lg font-black text-slate-dark mb-2">
-            Débloque tes {totalCount} opportunités
-          </h3>
-          <p className="text-slate-mid text-sm mb-5">
-            Tu es à un pas de découvrir toutes les opportunités qui correspondent à ton profil.
-          </p>
-          <Link
-            href="/auth/register?next=/results"
-            className="inline-flex items-center justify-center w-full h-13 rounded-full bg-primary text-white font-bold text-base hover:bg-primary-dark shadow-md shadow-orange-200 transition-colors"
-          >
-            Débloquer l'accès complet →
-          </Link>
-        </div>
-      ) : (
+      {isAuthenticated ? null : (
         // Utilisateur non connecté — auth gate
         <div className="bg-gradient-to-br from-primary-light to-orange-50 rounded-2xl border-2 border-orange-200 p-6 text-center">
           <p className="text-2xl mb-2">🎯</p>
           <h3 className="text-lg font-black text-slate-dark mb-2">
             {totalCount} opportunités trouvées pour toi
           </h3>
-          <p className="text-slate-mid text-sm mb-5">
-            Crée ton compte gratuit en 1 minute pour accéder à toutes tes opportunités personnalisées.
+          <p className="text-slate-mid text-sm mb-5 leading-relaxed">
+            Crée ton compte gratuit en 1 minute pour accéder à tes recommandations personnalisées
+            et rejoindre la bêta KRAAK.
           </p>
-
           <Link
             href="/auth/register?next=/results"
-            className="inline-flex items-center justify-center w-full h-13 rounded-full bg-primary text-white font-bold text-base hover:bg-primary-dark shadow-md shadow-orange-200 transition-colors mb-3"
+            className="inline-flex items-center justify-center w-full h-12 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary-dark shadow-md shadow-orange-200 transition-colors mb-3"
           >
             Créer mon compte gratuit →
           </Link>
-
           <Link
             href="/auth/login?next=/results"
-            className="inline-flex items-center justify-center w-full h-11 rounded-full border-2 border-primary text-primary font-semibold text-sm hover:bg-white transition-colors"
+            className="inline-flex items-center justify-center w-full h-10 rounded-full border-2 border-primary text-primary font-semibold text-sm hover:bg-white transition-colors"
           >
-            J'ai déjà un compte — Se connecter
+            J&apos;ai déjà un compte — Se connecter
           </Link>
         </div>
       )}
@@ -74,7 +56,7 @@ export default function PaywallSection({ locked, totalCount, isAuthenticated = f
               <div className="h-5 w-24 bg-gray-100 rounded-full" />
             </div>
             <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] flex items-center justify-center">
-              <span className="text-slate-mid text-sm font-semibold">🔒 Verrouillé</span>
+              <span className="text-slate-mid text-sm font-semibold">🔒 Bientôt disponible</span>
             </div>
           </div>
         ))}

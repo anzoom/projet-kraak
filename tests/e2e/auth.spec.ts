@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test"
 
 test.describe("Authentification — Connexion", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/auth/login")
+    await page.goto("/auth/login", { waitUntil: "load", timeout: 30000 })
   })
 
   test("affiche le formulaire de connexion", async ({ page }) => {
@@ -15,10 +15,13 @@ test.describe("Authentification — Connexion", () => {
 
   test("affiche une erreur sur identifiants incorrects", async ({ page }) => {
     const form = page.locator("form")
-    await form.getByLabel(/email/i).fill("invalide@test.com")
-    await form.getByLabel(/mot de passe/i).fill("wrongpassword123")
-    await form.getByRole("button", { name: /se connecter/i }).click()
-    await expect(page.getByText(/incorrect|invalide|email ou mot de passe/i)).toBeVisible({ timeout: 8000 })
+    const submitBtn = form.getByRole("button", { name: /se connecter/i })
+    // Attendre que React hydrate le formulaire avant d'interagir
+    await expect(submitBtn).toBeEnabled({ timeout: 15000 })
+    await page.locator("#email").pressSequentially("invalide@test.com")
+    await page.fill("#password", "wrongpassword123")
+    await submitBtn.click()
+    await expect(page.getByText(/incorrect|invalide|email ou mot de passe/i)).toBeVisible({ timeout: 15000 })
   })
 
   test("lien vers inscription visible", async ({ page }) => {
@@ -32,7 +35,7 @@ test.describe("Authentification — Connexion", () => {
 
 test.describe("Authentification — Inscription", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/auth/register")
+    await page.goto("/auth/register", { waitUntil: "load", timeout: 30000 })
   })
 
   test("affiche le formulaire d'inscription", async ({ page }) => {

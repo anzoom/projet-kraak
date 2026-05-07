@@ -16,12 +16,17 @@ model User {
   email          String    @unique
   supabase_uid   String    @unique
   alerts_enabled Boolean   @default(false)
+  welcome_sent   Boolean   @default(false)
   deleted_at     DateTime?
   created_at     DateTime  @default(now())
 
-  test_responses    TestResponse[]
-  purchase_accesses PurchaseAccess[]
-  payments          Payment[]
+  test_responses      TestResponse[]
+  purchase_accesses   PurchaseAccess[]
+  payments            Payment[]
+  guide_subscriptions        GuideSubscription[]
+  saved_opportunities        SavedOpportunity[]
+  deadline_alert_preferences DeadlineAlertPreference[]
+  checkout_sessions          CheckoutSession[]
 }
 
 model TestResponse {
@@ -110,4 +115,107 @@ enum CoachingBookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
+}
+
+model GuideSubscription {
+  id                 String                  @id @default(cuid())
+  user_id            String
+  plan               GuidePlan
+  status             GuideSubscriptionStatus @default(ACTIVE)
+  current_period_end DateTime
+  lemon_order_id     String?
+  created_at         DateTime                @default(now())
+  updated_at         DateTime                @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+}
+
+enum GuidePlan {
+  MONTHLY
+  ANNUAL
+}
+
+enum GuideSubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+model SavedOpportunity {
+  id             String   @id @default(cuid())
+  user_id        String
+  opportunity_id String   // ID Payload CMS — pas de FK (ORM séparé)
+  saved_at       DateTime @default(now())
+
+  user                     User                      @relation(fields: [user_id], references: [id])
+  deadline_alert_preference DeadlineAlertPreference?
+
+  @@unique([user_id, opportunity_id])
+  @@index([user_id])
+}
+
+model DeadlineAlertPreference {
+  id             String   @id @default(cuid())
+  user_id        String
+  opportunity_id String
+  alert_90d      Boolean  @default(true)
+  alert_30d      Boolean  @default(true)
+  alert_7d       Boolean  @default(true)
+  saved_opp_id   String   @unique
+
+  user           User              @relation(fields: [user_id], references: [id])
+  saved_opp      SavedOpportunity  @relation(fields: [saved_opp_id], references: [id])
+  sent_alerts    SentDeadlineAlert[]
+
+  @@unique([user_id, opportunity_id])
+  @@index([user_id])
+}
+
+model SentDeadlineAlert {
+  id          String   @id @default(cuid())
+  pref_id     String
+  days_before Int      // 90, 30, ou 7
+  sent_at     DateTime @default(now())
+
+  preference  DeadlineAlertPreference @relation(fields: [pref_id], references: [id])
+
+  @@unique([pref_id, days_before])
+}
+
+model CheckoutSession {
+  id         String         @id @default(cuid())
+  user_id    String
+  plan       GuidePlan
+  token      String         @unique @default(uuid())
+  status     CheckoutStatus @default(PENDING)
+  expires_at DateTime
+  created_at DateTime       @default(now())
+
+  user       User           @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([token])
+}
+
+enum CheckoutStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+model WaitlistEntry {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  source           String   @default("landing")
+  first_name       String?
+  country          String?
+  education_level  String?
+  domain           String?
+  opportunity_type String?
+  interest         String?
+  pain_point       String?
+  status           String   @default("pending")
+  created_at       DateTime @default(now())
 }

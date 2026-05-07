@@ -67,6 +67,13 @@ export function withA(article: Article, label: string): string {
   return `à la ${label}`
 }
 
+/** "en France", "en Belgique", "au Canada", "aux Pays-Bas", "en Europe" */
+export function enPays(article: Article, label: string): string {
+  if (article === "le")  return `au ${label}`
+  if (article === "les") return `aux ${label}`
+  return `en ${label}`
+}
+
 /** "toute l'Europe", "toute la France", "tout le Canada", "tous les Pays-Bas" */
 export function toute(article: Article, label: string): string {
   if (article === "l'") return `toute l'${label}`

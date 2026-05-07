@@ -27,6 +27,7 @@ export interface Opportunity {
   category: string
   domain: string
   country: string
+  location?: string | null
   funding_type: string
   deadline: string | null
   budget_required: number | null
@@ -37,11 +38,23 @@ export interface Opportunity {
 
 export type RecommendationBadge = "top" | "probability" | null
 
+export type FeasibilityFinancial = "ok" | "risque" | "bloquant"
+export type FeasibilityAcademic = "ok" | "limite"
+export type FeasibilityTemporal = "urgent" | "confortable"
+
+export interface FeasibilityScore {
+  financial: FeasibilityFinancial
+  academic: FeasibilityAcademic
+  temporal: FeasibilityTemporal
+}
+
 export interface Recommendation {
   opportunity: Opportunity
   match_score: number
   justification: string
   badge: RecommendationBadge
+  isExpired: boolean
+  feasibility: FeasibilityScore
 }
 
 export interface MatchInput {

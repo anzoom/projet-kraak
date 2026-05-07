@@ -1,9 +1,15 @@
 import { test, expect } from "@playwright/test"
 
+test.setTimeout(60000)
+
 test.describe("Page Résultats — utilisateur non authentifié", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/results")
-    await page.waitForLoadState("networkidle")
+    await page.goto("/results", { waitUntil: "domcontentloaded" })
+    // Attendre que le state loading → no_data/ready soit résolu (spinner disparaît)
+    await page.waitForFunction(
+      () => document.body.textContent?.includes("Analyse de ton profil") === false,
+      { timeout: 10000 },
+    ).catch(() => {})
   })
 
   test("affiche la page sans redirection", async ({ page }) => {

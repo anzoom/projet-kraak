@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Bookmark, Lock } from "lucide-react"
+import { Bookmark } from "lucide-react"
 import Link from "next/link"
 import posthog from "posthog-js"
 import type { ScoringOutput, Opportunity, Recommendation } from "@/types/scoring"
 import { matchOpportunities, countZoneFallbacks } from "@/domain/matching/matcher"
-import { SPECIFIC_COUNTRIES, ZONE_LABELS, ZONE_ARTICLES, getZoneForCountry, withA, toute } from "@/lib/countries"
+import { SPECIFIC_COUNTRIES, ZONE_LABELS, ZONE_ARTICLES, getZoneForCountry, enPays, toute, isSpecificCountry } from "@/lib/countries"
 import { useSavedOpportunities } from "@/hooks/useSavedOpportunities"
 import ScoreCard from "./ScoreCard"
 import RecommendationCard from "./RecommendationCard"
 import PaywallSection from "./PaywallSection"
-import CoachingUpsell from "./CoachingUpsell"
+import KraakDiagnostic from "./KraakDiagnostic"
+import ActionPlan from "./ActionPlan"
 import BetaCapture from "@/components/features/waitlist/BetaCapture"
 
 const STORAGE_KEY_SESSION = "kraak_anonymous_session"
@@ -26,6 +27,15 @@ function answersMatch(a: Record<string, string>, b: Record<string, string>): boo
   const keysB = Object.keys(b)
   if (keysA.length !== keysB.length) return false
   return keysA.every((k) => a[k] === b[k])
+}
+
+function hashAnswers(answers: Record<string, string>): string {
+  return Object.keys(answers).sort().map((k) => `${k}=${answers[k]}`).join("|")
+}
+
+interface StoredQuota {
+  ids: string[]
+  answersHash: string
 }
 
 interface Props {
@@ -121,22 +131,50 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
         }
 
         // Gestion du quota d'opportunités : les IDs sont fixés dès la première consultation
-        const storedQuota = localStorage.getItem(STORAGE_KEY_QUOTA)
-        let quotaIds: string[] = storedQuota ? (JSON.parse(storedQuota) as string[]) : []
+        // Le hash des réponses permet de distinguer un changement de catalogue (même réponses → reset silencieux)
+        // d'une tentative de gaming (réponses différentes → quota épuisé)
+        const storedRaw = localStorage.getItem(STORAGE_KEY_QUOTA)
+        const currentAnswersHash = hashAnswers(answers)
+        let quotaIds: string[] = []
         let quotaExhausted = false
 
-        if (quotaIds.length === 0) {
-          // Premier accès : fixer le quota à partir des premières recommandations
-          quotaIds = allRecommendations.slice(0, limit).map((r) => r.opportunity.id)
+        const newIds = allRecommendations.slice(0, limit).map((r) => r.opportunity.id)
+
+        if (!storedRaw) {
+          // Premier accès : fixer le quota
+          quotaIds = newIds
           if (quotaIds.length > 0) {
-            localStorage.setItem(STORAGE_KEY_QUOTA, JSON.stringify(quotaIds))
+            localStorage.setItem(STORAGE_KEY_QUOTA, JSON.stringify({ ids: quotaIds, answersHash: currentAnswersHash } satisfies StoredQuota))
           }
         } else {
-          // Quota déjà fixé : vérifier si les nouvelles recs contiennent les mêmes IDs
-          const newIds = allRecommendations.slice(0, limit).map((r) => r.opportunity.id)
-          const isNewSet = newIds.some((id) => !quotaIds.includes(id))
-          if (isNewSet) {
-            // L'utilisateur tente de voir de nouvelles oppos via les critères → quota épuisé
+          let stored: StoredQuota | null = null
+          try {
+            const parsed = JSON.parse(storedRaw) as unknown
+            // Compatibilité avec l'ancien format (tableau simple)
+            if (Array.isArray(parsed)) {
+              stored = { ids: parsed as string[], answersHash: currentAnswersHash }
+            } else {
+              stored = parsed as StoredQuota
+            }
+          } catch { stored = null }
+
+          if (!stored) {
+            // Données corrompues → reset
+            quotaIds = newIds
+            localStorage.setItem(STORAGE_KEY_QUOTA, JSON.stringify({ ids: quotaIds, answersHash: currentAnswersHash } satisfies StoredQuota))
+          } else if (stored.answersHash === currentAnswersHash) {
+            // Mêmes réponses : vérifier si le catalogue a changé
+            const catalogChanged = newIds.some((id) => !stored!.ids.includes(id))
+            if (catalogChanged) {
+              // Mise à jour catalogue → reset silencieux (pas de quotaExhausted)
+              quotaIds = newIds
+              localStorage.setItem(STORAGE_KEY_QUOTA, JSON.stringify({ ids: quotaIds, answersHash: currentAnswersHash } satisfies StoredQuota))
+            } else {
+              quotaIds = stored.ids
+            }
+          } else {
+            // Réponses différentes → tentative de gaming → quota épuisé
+            quotaIds = stored.ids
             quotaExhausted = true
           }
         }
@@ -154,6 +192,7 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
                 justification: "dans ton quota d'accès gratuit",
                 badge: null,
                 isExpired: !!(opp.deadline && new Date(opp.deadline) < new Date()),
+                feasibility: { financial: "ok", academic: "ok", temporal: "confortable" },
               } satisfies Recommendation
             })()
           )
@@ -204,15 +243,24 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
 
   const { score, answers, recommendations, quotaExhausted } = state
 
-  // Message informatif quand des opportunités zone-wide complètent le matching d'un pays précis
+  // Message informatif quand des opportunités zone-wide ou internationales complètent le matching d'un pays précis
   const targetCountry = answers.target_country ?? ""
-  const zoneFallbackCount = countZoneFallbacks(recommendations, targetCountry)
   const targetCountryMeta = SPECIFIC_COUNTRIES[targetCountry]
   const targetCountryLabel = targetCountryMeta?.label ?? ""
   const targetZone = getZoneForCountry(targetCountry) ?? ""
   const targetZoneLabel = ZONE_LABELS[targetZone] ?? ""
   const zoneArticle = ZONE_ARTICLES[targetZone] ?? "l'"
   const countryArticle = targetCountryMeta?.article ?? "la"
+
+  const zoneFallbackCount = countZoneFallbacks(recommendations, targetCountry)
+  const exactCountryCount = isSpecificCountry(targetCountry)
+    ? recommendations.filter((r) => r.opportunity.country.toLowerCase() === targetCountry).length
+    : recommendations.length
+  const nonExactCount = isSpecificCountry(targetCountry)
+    ? recommendations.filter((r) => r.opportunity.country.toLowerCase() !== targetCountry).length
+    : 0
+  // Bandeau dès qu'on complète avec des résultats zone/international, quelle que soit la quantité exacte
+  const showFallbackBanner = nonExactCount > 0 && !showFavorites
 
   // Les recommandations sont déjà limitées au quota dans la logique de load()
   const capped = recommendations
@@ -230,6 +278,7 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
       justification: "",
       badge: null,
       isExpired: !!(o.deadline && new Date(o.deadline) < new Date()),
+      feasibility: { financial: "ok", academic: "ok", temporal: "confortable" },
     } satisfies Recommendation
   })
 
@@ -238,6 +287,33 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
   return (
     <div className="w-full max-w-lg space-y-6">
       <ScoreCard score={score} />
+      <KraakDiagnostic answers={answers} />
+
+      {/* Sélection fixée — encouragement rétention */}
+      {quotaExhausted && !showFavorites && (
+        <div className="bg-gradient-to-br from-violet-50 to-blue-50 border border-violet-200 rounded-2xl p-5">
+          <div className="flex items-start gap-3">
+            <span className="text-xl shrink-0 mt-0.5">✨</span>
+            <div>
+              <p className="font-bold text-slate-dark text-sm mb-1">
+                Tes {limit} opportunités sont sélectionnées.
+              </p>
+              <p className="text-xs text-slate-mid leading-relaxed mb-1">
+                Chaque semaine, de nouveaux programmes rejoignent le catalogue KRAAK. Ton profil est enregistré — sois parmi les premiers à découvrir celles qui te correspondent.
+              </p>
+              <p className="text-xs text-violet-500 font-medium mb-3">
+                Des centaines d&apos;opportunités dans le catalogue. Et ça grandit.
+              </p>
+              <a
+                href="#alertes"
+                className="inline-flex items-center gap-1.5 bg-primary text-white font-semibold text-xs px-4 py-2 rounded-full hover:bg-primary-dark transition-colors"
+              >
+                Être alerté des nouvelles opportunités →
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {recommendations.length === 0 ? (
         <div className="bg-white rounded-2xl border-2 border-gray-100 p-6 space-y-4">
@@ -293,6 +369,21 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
                 </span>
               )}
             </div>
+            {/* Bandeau zone-fallback — visible dès que des résultats zone/international complètent le pays cible */}
+            {showFallbackBanner && (
+              <div className="mb-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                <span className="text-base shrink-0 mt-0.5">ℹ️</span>
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  {exactCountryCount === 0
+                    ? zoneFallbackCount > 0
+                      ? `Aucune opportunité trouvée ${enPays(countryArticle, targetCountryLabel)} — on a complété avec les opportunités ouvertes ${toute(zoneArticle, targetZoneLabel)} et à l'international accessibles depuis ${targetCountryLabel}.`
+                      : `Aucune opportunité trouvée ${enPays(countryArticle, targetCountryLabel)} — on a complété avec les opportunités internationales accessibles depuis ${targetCountryLabel}.`
+                    : zoneFallbackCount > 0
+                      ? `${exactCountryCount} opportunité${exactCountryCount > 1 ? "s" : ""} trouvée${exactCountryCount > 1 ? "s" : ""} ${enPays(countryArticle, targetCountryLabel)} — on a complété avec des opportunités ouvertes ${toute(zoneArticle, targetZoneLabel)} et à l'international accessibles depuis ${targetCountryLabel}.`
+                      : `${exactCountryCount} opportunité${exactCountryCount > 1 ? "s" : ""} trouvée${exactCountryCount > 1 ? "s" : ""} ${enPays(countryArticle, targetCountryLabel)} — on a complété avec des opportunités internationales accessibles depuis ${targetCountryLabel}.`}
+                </p>
+              </div>
+            )}
             <div className="space-y-3">
               {displayedFree.length === 0 && showFavorites ? (
                 <p className="text-sm text-slate-mid text-center py-4">
@@ -309,86 +400,31 @@ export default function ResultsClient({ opportunities, needsScoring = false, isA
                       isPremium={isPremium}
                     />
 
-                    {/* CoachingUpsell interstitiel après la 3ème reco */}
-                    {i === 2 && !showFavorites && (
-                      <div className="mt-3">
-                        <CoachingUpsell recommendations={free.length > 0 ? free : capped} />
-                      </div>
-                    )}
                   </div>
                 ))
               )}
             </div>
 
-            {/* Upgrade teaser Classic → Premium */}
-            {!isPremium && !showFavorites && isAuthenticated && (
-              <div className="mt-3 bg-primary/5 border-2 border-primary/20 rounded-2xl p-4 flex items-start gap-3">
-                <span className="text-xl shrink-0">🚀</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-slate-dark mb-1">
-                    Passe en Premium — vois 4× plus
-                  </p>
-                  <p className="text-xs text-slate-mid leading-relaxed mb-3">
-                    Compte Classic : <strong>jusqu'à 5 recommandations</strong>. Guide Premium : <strong>jusqu'à 20 recommandations</strong> + 15 favoris sauvegardables.
-                  </p>
-                  <Link
-                    href="/guide-premium"
-                    className="inline-flex items-center h-8 px-4 rounded-full border-2 border-primary text-primary font-bold text-xs hover:bg-primary hover:text-white transition-colors"
-                  >
-                    Découvrir le Guide Premium →
-                  </Link>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Bandeau zone-fallback — opportunités zone-wide incluses pour compléter le pays précis */}
-          {zoneFallbackCount > 0 && !showFavorites && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
-              <span className="text-base shrink-0 mt-0.5">ℹ️</span>
-              <p className="text-xs text-blue-800 leading-relaxed">
-                {zoneFallbackCount === 1
-                  ? `1 opportunité est ouverte ${toute(zoneArticle, targetZoneLabel)}, pas uniquement ${withA(countryArticle, targetCountryLabel)}.`
-                  : `${zoneFallbackCount} opportunités sont ouvertes ${toute(zoneArticle, targetZoneLabel)}, pas uniquement ${withA(countryArticle, targetCountryLabel)}.`}{" "}
-                Elles restent accessibles depuis {targetCountryLabel} — on les inclut pour compléter tes résultats.
-              </p>
-            </div>
-          )}
 
-          {/* Alerte quota épuisé — modifications des critères bloquées */}
-          {quotaExhausted && !showFavorites && (
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5">
-              <div className="flex items-start gap-3">
-                <Lock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-slate-dark text-sm mb-1">
-                    Quota gratuit atteint (jusqu'à {limit} opportunités)
-                  </p>
-                  <p className="text-xs text-slate-mid leading-relaxed mb-3">
-                    Tu as déjà consulté tes {limit} opportunités gratuites. Modifier les critères ne débloque pas de nouvelles recommandations — ces résultats sont ceux qui t&apos;ont été attribués.
-                  </p>
-                  <Link
-                    href="/guide-premium"
-                    className="inline-flex items-center gap-1.5 bg-primary text-white font-semibold text-xs px-4 py-2 rounded-full hover:bg-primary-dark transition-colors"
-                  >
-                    Voir toutes mes opportunités →
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Collecte d'intérêt services à venir */}
+          {/* Plan d'action personnalisé */}
           {!showFavorites && (
-            <BetaCapture
-              source="results"
-              title="Services à venir"
-              subtitle="Dis-nous ce qui t'intéresse — on te prévient en premier."
-              ctaLabel="Me prévenir →"
-            />
+            <ActionPlan answers={answers} segment={score.segment} />
           )}
 
-          {locked.length > 0 && <PaywallSection locked={locked} totalCount={capped.length} isAuthenticated={isAuthenticated} />}
+          {!showFavorites && (
+            <div id="alertes">
+              <BetaCapture
+                source="results"
+                title="Être prévenu au lancement"
+                subtitle="Dis-nous ce qui t'intéresse — on te prévient en avant-première."
+                ctaLabel="Je veux être prévenu →"
+              />
+            </div>
+          )}
+
+{locked.length > 0 && <PaywallSection locked={locked} totalCount={capped.length} isAuthenticated={isAuthenticated} />}
 
           {/* Coconstruction — toujours visible en bas des résultats */}
           {!showFavorites && (

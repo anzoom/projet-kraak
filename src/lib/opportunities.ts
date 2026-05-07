@@ -10,6 +10,7 @@ interface PayloadDoc {
   category: string
   domain: string
   country: string
+  location?: string | null
   funding_type: string
   deadline?: string | null
   budget_required?: number | null
@@ -26,11 +27,13 @@ export async function fetchOpportunities(): Promise<Opportunity[]> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
     const res = await fetch(
-      `${baseUrl}/api/opportunities?where[is_active][equals]=true&limit=50`,
-      { next: { revalidate: 300 } },
+      `${baseUrl}/api/opportunities?where[is_active][equals]=true&limit=500`,
+      { next: { revalidate: process.env.NODE_ENV === "development" ? 0 : 300 } },
     )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data: PayloadResponse = await res.json()
+    const FUNDING_MAP: Record<string, string> = { partielle: "partial" }
+
     const opportunities: Opportunity[] = data.docs.map((doc) => ({
       id: String(doc.id),
       title: doc.title,
@@ -39,7 +42,8 @@ export async function fetchOpportunities(): Promise<Opportunity[]> {
       category: doc.category,
       domain: doc.domain,
       country: doc.country,
-      funding_type: doc.funding_type,
+      location: doc.location ?? null,
+      funding_type: FUNDING_MAP[doc.funding_type] ?? doc.funding_type,
       deadline: doc.deadline ?? null,
       budget_required: doc.budget_required ?? null,
       short_description: doc.short_description ?? null,

@@ -104,6 +104,17 @@ Chaque question SHALL être affichée sur un écran dédié avec des zones tacti
 - **WHEN** la page `/test` est affichée sur un écran de 375px
 - **THEN** aucun défilement horizontal n'est présent
 
+### Requirement: Option "Autre domaine" dans la question de domaine
+La question du domaine d'études SHALL inclure une option "Autre domaine — je n'ai pas encore décidé" (`value: "autre"`). Cette valeur désactive le filtre domaine dans le moteur de matching (voir spec `matching-engine`).
+
+#### Scenario: Option "autre" sélectionnable
+- **WHEN** l'utilisateur est à la question "Dans quel domaine d'études tu te projettes ?"
+- **THEN** une option "Autre domaine — je n'ai pas encore décidé" est disponible dans le dropdown
+
+#### Scenario: Réponse "autre" transmise au moteur de matching
+- **WHEN** l'utilisateur sélectionne "autre" pour la question domaine
+- **THEN** `answers.domain = "autre"` est enregistré et le filtre domaine est désactivé lors du matching
+
 ### Requirement: Accessibilité clavier et sémantique
 Les options de réponse SHALL être implémentées avec des éléments sémantiques (menus déroulants select ou boutons avec rôle approprié) navigables au clavier.
 

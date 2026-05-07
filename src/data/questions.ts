@@ -3,7 +3,7 @@ import type { Question } from "@/types/test"
 export const questions: Question[] = [
   {
     id: "origin_country",
-    text: "De quel pays viens-tu ?",
+    text: "Tu viens de quel pays ?",
     options: [
       { value: "benin", label: "Bénin" },
       { value: "burkina_faso", label: "Burkina Faso" },
@@ -19,7 +19,7 @@ export const questions: Question[] = [
   },
   {
     id: "current_level",
-    text: "Quel est ton niveau actuel ?",
+    text: "Tu es en quelle année d'études en ce moment ?",
     options: [
       { value: "lycee", label: "Lycéen (Terminale)" },
       { value: "licence_1_2", label: "Licence 1 ou 2 (Bac+1/+2)" },
@@ -30,7 +30,7 @@ export const questions: Question[] = [
   },
   {
     id: "main_objective",
-    text: "Quel est ton objectif principal ?",
+    text: "Quel type d'opportunité tu recherches ?",
     options: [
       { value: "bourse", label: "Obtenir une bourse d'études" },
       { value: "programme", label: "Intégrer un programme (graduate, échange, accélérateur…)" },
@@ -42,7 +42,7 @@ export const questions: Question[] = [
   },
   {
     id: "domain",
-    text: "Dans quel domaine veux-tu évoluer ?",
+    text: "Dans quel domaine tu étudies ou veux étudier ?",
     options: [
       { value: "sciences_tech", label: "Sciences & Technologie / Ingénierie" },
       { value: "commerce", label: "Commerce, Gestion & Finance" },
@@ -55,22 +55,22 @@ export const questions: Question[] = [
   },
   {
     id: "target_country",
-    text: "Dans quel pays ou quelle zone veux-tu évoluer ?",
+    text: "Tu vises quel pays ou quelle région ?",
     options: [],
   },
   {
     id: "budget",
-    text: "Quel budget peux-tu mobiliser pour ton projet ?",
+    text: "Tu peux mettre combien pour financer ton projet ?",
     options: [
-      { value: "zero", label: "Aucun budget — j'ai besoin d'un financement total" },
-      { value: "petit", label: "Moins de 500 000 FCFA (~800 $)" },
-      { value: "moyen", label: "Entre 500 000 et 2 000 000 FCFA (~800–3 200 $)" },
-      { value: "confortable", label: "Plus de 2 000 000 FCFA (~3 200 $)" },
+      { value: "zero", label: "Zéro budget — je cherche uniquement des opportunités 100% financées" },
+      { value: "petit", label: "J'ai un petit budget (moins de 500 000 FCFA / ~800 $)" },
+      { value: "moyen", label: "Budget moyen (500 000 à 2 M FCFA / ~800–3 200 $)" },
+      { value: "confortable", label: "Budget confortable (plus de 2 M FCFA / +3 200 $)" },
     ],
   },
   {
     id: "academic_level",
-    text: "Quel est ton dernier diplôme obtenu ou en cours ?",
+    text: "Quel est ton dernier diplôme (obtenu ou en train de valider) ?",
     options: [
       { value: "bac", label: "Baccalauréat (ou équivalent)" },
       { value: "bac2", label: "BTS / DUT / Bac+2" },
@@ -81,28 +81,28 @@ export const questions: Question[] = [
   },
   {
     id: "dossier_maturity",
-    text: "Où en es-tu dans la préparation de ton dossier ?",
+    text: "Ton dossier de candidature, il en est où ?",
     options: [
-      { value: "debut", label: "Je n'ai encore rien préparé" },
-      { value: "en_cours", label: "J'ai commencé (relevés de notes, CV…)" },
-      { value: "avance", label: "Mon dossier est quasiment complet" },
-      { value: "pret", label: "Mon dossier est prêt à envoyer" },
+      { value: "debut", label: "Je commence tout juste — je n'ai rien préparé" },
+      { value: "en_cours", label: "J'ai commencé à rassembler mes documents (notes, CV…)" },
+      { value: "avance", label: "Mon dossier est presque prêt" },
+      { value: "pret", label: "Mon dossier est complet et prêt à envoyer" },
     ],
   },
   {
     id: "main_blocker",
-    text: "Quel est ton principal blocage aujourd'hui ?",
+    text: "Qu'est-ce qui t'empêche d'avancer aujourd'hui ?",
     options: [
-      { value: "information", label: "Je ne sais pas quelles opportunités existent" },
-      { value: "eligibilite", label: "Je ne sais pas si je suis éligible" },
-      { value: "documents", label: "Je bloque sur les documents à fournir" },
-      { value: "financement", label: "Je n'ai pas encore le financement nécessaire" },
-      { value: "confiance", label: "Je manque de confiance ou d'accompagnement" },
+      { value: "information", label: "Je ne sais pas quelles opportunités existent pour mon profil" },
+      { value: "eligibilite", label: "Je ne sais pas si je suis éligible pour ces opportunités" },
+      { value: "documents", label: "Je ne sais pas quels documents préparer ni comment" },
+      { value: "financement", label: "Je manque de financement pour candidater" },
+      { value: "confiance", label: "J'ai besoin d'être guidé — je ne sais pas par où commencer" },
     ],
   },
   {
     id: "timeline",
-    text: "Quel est ton horizon de départ ou de démarrage ?",
+    text: "Tu voudrais partir ou commencer dans combien de temps ?",
     options: [
       { value: "urgent", label: "Moins de 3 mois — c'est urgent" },
       { value: "court", label: "Dans 3 à 6 mois" },

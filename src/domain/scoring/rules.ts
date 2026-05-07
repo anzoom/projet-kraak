@@ -57,8 +57,8 @@ export const SCORING_RULES: {
   },
   budget_max_xof: {
     zero: 0,
-    petit: 100_000,
-    moyen: 500_000,
+    petit: 500_000,
+    moyen: 2_000_000,
     confortable: Number.MAX_SAFE_INTEGER,
   },
 }

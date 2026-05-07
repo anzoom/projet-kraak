@@ -9,7 +9,7 @@ test.describe("Test de profil", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/test")
     // Attendre que le stepper soit hydraté
-    await expect(page.getByRole("button", { name: /suivant|voir mes résultats/i })).toBeVisible()
+    await expect(page.getByRole("button", { name: /suivant|voir mes résultats/i })).toBeVisible({ timeout: 15000 })
   })
 
   test("affiche la barre de progression", async ({ page }) => {

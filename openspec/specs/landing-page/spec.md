@@ -1,12 +1,12 @@
 ### Requirement: Proposition de valeur visible immédiatement
-La landing page SHALL afficher la promesse principale de KRAAK en moins de 2 lignes, visible sans scroll sur mobile (above the fold), avec un CTA principal "Tester mon profil" accessible en un seul clic.
+La landing page SHALL afficher la promesse principale de KRAAK en moins de 2 lignes, visible sans scroll sur mobile (above the fold), avec un CTA principal "Voir mes résultats en < 1 min" accessible en un seul clic.
 
 #### Scenario: Chargement initial sur mobile (375px)
 - **WHEN** un utilisateur ouvre la landing page sur un écran de 375px de large
-- **THEN** la promesse principale et le bouton CTA "Tester mon profil" sont tous les deux visibles sans scroll
+- **THEN** la promesse principale et le bouton CTA "Voir mes résultats en < 1 min" sont tous les deux visibles sans scroll
 
 #### Scenario: Clic sur le CTA principal
-- **WHEN** l'utilisateur clique sur le bouton "Tester mon profil"
+- **WHEN** l'utilisateur clique sur le bouton "Voir mes résultats en < 1 min"
 - **THEN** il est redirigé vers `/test` sans rechargement de page
 
 ### Requirement: Navigation principale contextuelle selon session
@@ -33,7 +33,7 @@ La Hero Section SHALL afficher des CTAs et un message différents selon l'état 
 
 #### Scenario: Hero — utilisateur non connecté
 - **WHEN** un utilisateur sans session charge la page d'accueil
-- **THEN** la Hero Section affiche : bouton primaire "Tester mon profil" (liant vers `/test`), lien "Déjà un compte ? Se connecter" (liant vers `/auth/login`), et le compteur social "Déjà plus de 2 000 étudiants africains accompagnés"
+- **THEN** la Hero Section affiche : bouton primaire "Voir mes résultats en < 1 min" (liant vers `/test`), lien "Déjà un compte ? Se connecter" (liant vers `/auth/login`), et le compteur social "Déjà plus de 2 000 étudiants africains accompagnés"
 
 ### Requirement: Inscription prioritaire sur connexion pour les non-connectés
 Les éléments de navigation de la landing page SHALL présenter l'inscription ("S'inscrire") comme action primaire et la connexion ("Se connecter") comme action secondaire pour les utilisateurs non connectés.
@@ -63,12 +63,31 @@ La page SHALL inclure des éléments de réassurance pour établir la confiance 
 - **WHEN** l'utilisateur scroll jusqu'à la section réassurance
 - **THEN** au moins 3 éléments de réassurance sont affichés
 
+### Requirement: Section offres KRAAK (PremiumSection)
+La landing page SHALL afficher une section présentant les 4 offres de services KRAAK en grille 2×2 : Guide KRAAK, Coaching individuel, Aide démarches visa, Voyage & Hébergement. Les thèmes visuels alternent entre le style "Guide" (fond sombre/neutre, CTA orange) et le style "Coaching" (fond orange, CTA blanc), appliqués de manière cohérente avec la page `/coaching`.
+
+#### Scenario: 4 cartes de services affichées
+- **WHEN** l'utilisateur scroll jusqu'à la section des offres
+- **THEN** les 4 cartes (Guide, Coaching, Visa, Voyage) sont affichées en grille 2×2
+
+#### Scenario: Thèmes visuels cohérents
+- **WHEN** les cartes sont affichées
+- **THEN** Guide KRAAK et Aide visa utilisent le thème "Guide" (fond sombre, CTA primaire), Coaching et Voyage utilisent le thème "Coaching" (fond orange, CTA blanc)
+
+#### Scenario: CTA Visa redirige vers la section coaching
+- **WHEN** l'utilisateur clique sur le CTA "Aide visa"
+- **THEN** il est redirigé vers `/coaching#visa`
+
+#### Scenario: CTA Voyage redirige vers la section coaching
+- **WHEN** l'utilisateur clique sur le CTA "Voyage"
+- **THEN** il est redirigé vers `/coaching#voyage`
+
 ### Requirement: CTA final
-La page SHALL se terminer par une section CTA finale répétant la promesse principale et le bouton "Tester mon profil".
+La page SHALL se terminer par une section CTA finale répétant la promesse principale et le bouton "Voir mes résultats en < 1 min".
 
 #### Scenario: CTA final présent
 - **WHEN** l'utilisateur atteint le bas de la page
-- **THEN** un bouton "Tester mon profil" est visible dans la section finale
+- **THEN** un bouton "Voir mes résultats en < 1 min" est visible dans la section finale
 
 ### Requirement: Responsive mobile-first
 La page SHALL être entièrement responsive, en priorité sur mobile (375px–428px), sans défilement horizontal, avec des textes lisibles (taille minimum 16px sur mobile) et des zones tactiles d'au minimum 44px.
